@@ -1,5 +1,5 @@
 # Check if model and tokenizer exist in Google Drive
-GDRIVE_PATH = os.path.join(GD_PATH, "/My Drive/SpellingMiracleCollab/")  # Adjust path as necessary
+GDRIVE_PATH = os.path.join(GD_PATH, "My Drive/SpellingMiracleCollab")  # Adjust path as necessary
 MODEL_PATH = os.path.join(GDRIVE_PATH, "gpt-j_model")
 TOKENIZER_PATH = os.path.join(GDRIVE_PATH, "gpt-j_tokenizer")
 EMBEDDINGS_PATH = os.path.join(GDRIVE_PATH, "gpt-j_embeddings")
