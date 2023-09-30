@@ -10,29 +10,26 @@ from src.probes import LinearProbe
 from src.get_training_data_anywhere_letter import get_training_data_anywhere_letter
 
 
-def probe_training_runner(
+def all_probe_training_runner(
         embeddings, 
         all_rom_token_indices, 
         token_strings,
-        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ"):
-
-    # Use CUDA if possible:
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        patience = 10, # Define a 'patience' value for early stopping:    
+        num_samples = 10000, # Define number of samples in training+validation dataset:
+        num_epochs = 100, # Define number of training epochs:
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        ):
 
     # Initialize an empty tensor to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
     embeddings_dim = embeddings.shape[1]
     all_probe_weights_tensor = torch.zeros(26, embeddings_dim).to(device)
 
-    # pars
-    patience = 10 # Define a 'patience' value for early stopping:    
-    num_samples = 10000 # Define number of samples in training+validation dataset:
-    num_epochs = 100 # Define number of training epochs:
-
     # Now loop over the alphabet and train/validate a linear probe for each letter:
     for i, letter in enumerate(alphabet):
 
         # Train the probe for the current letter:
-        all_probe_weights_tensor[i] = train_letter_presence_probe(
+        all_probe_weights_tensor[i] = train_letter_presence_probe_runner(
             letter,
             embeddings,
             token_strings,
@@ -46,7 +43,7 @@ def probe_training_runner(
     return all_probe_weights_tensor
 
 
-def train_letter_presence_probe(
+def train_letter_presence_probe_runner(
         letter,
         embeddings,
         token_strings,
@@ -55,7 +52,6 @@ def train_letter_presence_probe(
         num_epochs,
         patience,
         device,
-
     ):
 
     embeddings_dim = embeddings.shape[1]
