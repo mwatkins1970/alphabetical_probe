@@ -7,9 +7,9 @@ from sklearn.model_selection import train_test_split
 from src.dataset import LetterDataset
 
 from src.probes import LinearProbe
-from get_training_data_anywhere_letter import get_training_data_anywhere_letter
+from src.get_training_data_anywhere_letter import get_training_data_anywhere_letter
 
-def train_letter_presence_probes(embeddings, letter_presence_dict, all_rom_token_indices):
+def train_letter_presence_probes(embeddings, all_rom_token_indices, token_strings):
 
     # Use CUDA if possible:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -27,14 +27,12 @@ def train_letter_presence_probes(embeddings, letter_presence_dict, all_rom_token
     # Define number of training epochs:
     num_epochs = 100
 
-
     # Now loop over the alphabet and train/validate a linear probe for each letter:
-
     for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
 
       # construct tensors of embeddings and labels for training and validation
       all_embeddings, all_labels = get_training_data_anywhere_letter(
-          letter, num_samples, embeddings, letter_presence_dict, all_rom_token_indices)
+          letter, num_samples, embeddings, all_rom_token_indices, token_strings)
 
       # split the data into training and validation sets (using a function from the sklearn.model_selection module)
       X_train, X_val, y_train, y_val = train_test_split(all_embeddings, all_labels, test_size=0.2, random_state=42, stratify=all_labels)
@@ -129,7 +127,7 @@ def train_letter_presence_probes(embeddings, letter_presence_dict, all_rom_token
               if validation_loss < best_val_loss:
                   best_val_loss = validation_loss
                   best_train_loss = total_loss / len(train_loader)  # Store best training loss
-                  torch.save(model.state_dict(), f"model_{letter}.pth")
+                #   torch.save(model.state_dict(), f"model_{letter}.pt")
                   no_improve_count = 0  # Reset counter
               else:
                   no_improve_count += 1

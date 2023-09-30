@@ -3,7 +3,12 @@ import torch
 
 # This builds a dataset for training a linear probe to classify tokens according to presence of a given adjacent letter pair
 
-def get_training_data_anywhere_letter(target_letter, num_samples, embeddings, all_rom_token_gt2_indices):
+def get_training_data_anywhere_letter(
+		target_letter, 
+		num_samples, 
+		embeddings, 
+		all_rom_token_gt2_indices,
+		token_strings):
 
 	# Fetch indices for tokens that contain the target letter
 	positive_indices = [index for index in all_rom_token_gt2_indices if target_letter.lower().strip() in token_strings[index].lstrip().lower()]
