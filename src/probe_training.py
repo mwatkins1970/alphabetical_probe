@@ -1,6 +1,7 @@
 import torch 
 import torch.nn as nn 
 import torch.optim as optim
+import wandb 
 
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
@@ -18,8 +19,13 @@ def all_probe_training_runner(
         patience = 10, # Define a 'patience' value for early stopping:    
         num_samples = 10000, # Define number of samples in training+validation dataset:
         num_epochs = 100, # Define number of training epochs:
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+        use_wandb = False,
         ):
+
+    if use_wandb:
+        # generate unique run name
+        group_name = wandb.util.generate_id() + "_" + alphabet
 
     # Initialize an empty tensor to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
     embeddings_dim = embeddings.shape[1]
@@ -38,6 +44,8 @@ def all_probe_training_runner(
             num_epochs,
             patience,
             device,
+            use_wandb,
+            wandb_group_name = group_name if use_wandb else None,
         )
 
     return all_probe_weights_tensor
@@ -52,10 +60,33 @@ def train_letter_presence_probe_runner(
         num_epochs,
         patience,
         device,
+        use_wandb = False,
+        wandb_group_name = None,
     ):
 
-    embeddings_dim = embeddings.shape[1]
+    if use_wandb:
 
+        config = {
+            "letter": letter,
+            "model_name": "gpt2",
+            "probe_type": "LinearProbe",
+            "train_test_split": 0.2,
+            "case_sensitive": False,
+            "batch_size": 32,
+            "learning_rate": 0.001,
+            "patience": patience,
+            "num_samples": num_samples,
+            "num_epochs": num_epochs,
+            "device": device,
+        }
+
+        wandb.init(
+            project="letter_presence_probes",
+            group=wandb_group_name,
+            config=config,
+        )
+
+    embeddings_dim = embeddings.shape[1]
     probe_weights_tensor = torch.zeros(embeddings_dim).to(device)
 
     # construct tensors of embeddings and labels for training and validation
@@ -109,6 +140,9 @@ def train_letter_presence_probe_runner(
             optimizer.step()
 
             total_loss += loss.item()
+
+            if use_wandb:
+                wandb.log({"loss": loss.item()})
 
         print(f"{letter}: epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
 
@@ -165,6 +199,10 @@ def train_letter_presence_probe_runner(
     average_loss = validation_loss / len(val_loader)
     print(f"Validation Accuracy: {accuracy * 100:.2f}%")
     print(f"Validation Loss: {average_loss:.4f}")
+
+    if use_wandb:
+        wandb.log({"validation_loss": average_loss})
+        wandb.log({"validation_accuracy": accuracy})
 
     return probe_weights_tensor
 

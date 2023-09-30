@@ -1,0 +1,571 @@
+diff --git a/dev/joseph.ipynb b/dev/joseph.ipynb
+index 2aaaa6d..99584ee 100644
+--- a/dev/joseph.ipynb
++++ b/dev/joseph.ipynb
+@@ -2870,7 +2870,7 @@
+     }
+    ],
+    "source": [
+-    "from src.train_letter_presence_probes import train_letter_presence_probes\n",
++    "from src.probe_training import train_letter_presence_probes\n",
+     "\n",
+     "probe_weights_tensor = train_letter_presence_probes(\n",
+     "    embeddings, \n",
+diff --git a/requirements.txt b/requirements.txt
+index 51fe02e..d38a9c9 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -4,4 +4,4 @@ torch==2.0.1
+ accelerate==0.23.0
+ transformers==4.33.3
+ scikit-learn==1.3.1
+-
++wandb==0.15.11
+diff --git a/src/__init__.py b/src/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/src/model_loading.py b/src/model_loading.py
+index e2e6584..46f145a 100644
+--- a/src/model_loading.py
++++ b/src/model_loading.py
+@@ -2,47 +2,50 @@ import os
+ import torch
+ from transformers import AutoTokenizer, GPTJForCausalLM
+ 
+-def load_or_download_model(model_name="EleutherAI/gpt-j-6B", device = "cpu"):
+-    '''
+-    # Call the function with desired model name
+-    tokenizer, GPTmodel, embeddings = load_or_download_model(
+-        model_name="gpt2", device = "cpu")
+-    '''
+-    if not os.path.exists(f'./models/{model_name}'):
+-        os.makedirs(f'./models/{model_name}', exist_ok=True)
++import os
++import torch
++from transformers import AutoTokenizer, GPTJForCausalLM
+ 
++def load_or_download_tokenizer(model_name):
+     TOKENIZER_PATH = f"./models/{model_name}/tokenizer.pt"
+-    MODEL_PATH = f"./models/{model_name}/model.pt"
+-    EMBEDDINGS_PATH = f"./models/{model_name}/embeddings.pt"
+-
+-    # Load or Download Tokenizer
+     if os.path.exists(TOKENIZER_PATH):
+         print(f'Loading {model_name} tokenizer from local storage...')
+-        tokenizer = torch.load(TOKENIZER_PATH)
++        return torch.load(TOKENIZER_PATH)
+     else:
+         print(f'Downloading {model_name} tokenizer...')
+         tokenizer = AutoTokenizer.from_pretrained(f"{model_name}")
+         torch.save(tokenizer, TOKENIZER_PATH)
++        return tokenizer
+ 
+-    # Load or Download Model
++def load_or_download_model(model_name, device):
++    MODEL_PATH = f"./models/{model_name}/model.pt"
+     if os.path.exists(MODEL_PATH):
+         print(f'Loading {model_name} model from local storage...')
+-        GPTmodel = torch.load(MODEL_PATH).to(device)
++        return torch.load(MODEL_PATH).to(device)
+     else:
+         print(f'Downloading {model_name} model...')
+-        GPTmodel = GPTJForCausalLM.from_pretrained(f"{model_name}").to(device)
+-        torch.save(GPTmodel, MODEL_PATH)
+-        
+-    GPTmodel.eval()
++        model = GPTJForCausalLM.from_pretrained(f"{model_name}").to(device)
++        torch.save(model, MODEL_PATH)
++        return model
+ 
+-    # Save or Load Embeddings
++def load_or_save_embeddings(model, model_name, device):
++    EMBEDDINGS_PATH = f"./models/{model_name}/embeddings.pt"
+     if os.path.exists(EMBEDDINGS_PATH):
+         print(f'Loading {model_name} embeddings from local storage...')
+-        embeddings = torch.load(EMBEDDINGS_PATH).to(device)
++        return torch.load(EMBEDDINGS_PATH).to(device)
+     else:
+-        embeddings = GPTmodel.transformer.wte.weight.to(device)
++        embeddings = model.transformer.wte.weight.to(device)
+         torch.save(embeddings, EMBEDDINGS_PATH)
+         print(f"The {model_name} 'embeddings' tensor has been saved.")
++        return embeddings
+ 
+-    return tokenizer, GPTmodel, embeddings
++def load_or_download_model_tok_emb(model_name="EleutherAI/gpt-j-6B", device="cpu"):
++    if not os.path.exists(f'./models/{model_name}'):
++        os.makedirs(f'./models/{model_name}', exist_ok=True)
++
++    tokenizer = load_or_download_tokenizer(model_name)
++    GPTmodel = load_or_download_model(model_name, device)
++    GPTmodel.eval()
++    embeddings = load_or_save_embeddings(GPTmodel, model_name, device)
+ 
++    return tokenizer, GPTmodel, embeddings
+diff --git a/src/probe_training.py b/src/probe_training.py
+new file mode 100644
+index 0000000..975f257
+--- /dev/null
++++ b/src/probe_training.py
+@@ -0,0 +1,233 @@
++import torch 
++import torch.nn as nn 
++import torch.optim as optim
++import wandb 
++
++from torch.utils.data import DataLoader
++from sklearn.model_selection import train_test_split
++from src.dataset import LetterDataset
++
++from src.probes import LinearProbe
++from src.get_training_data_anywhere_letter import get_training_data_anywhere_letter
++
++
++def all_probe_training_runner(
++        embeddings, 
++        all_rom_token_indices, 
++        token_strings,
++        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ",
++        patience = 10, # Define a 'patience' value for early stopping:    
++        num_samples = 10000, # Define number of samples in training+validation dataset:
++        num_epochs = 100, # Define number of training epochs:
++        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
++        use_wandb = False,
++        ):
++
++    if use_wandb:
++        # generate unique run name
++        group_name = wandb.util.generate_id() + "_" + alphabet
++
++    # Initialize an empty tensor to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
++    embeddings_dim = embeddings.shape[1]
++    all_probe_weights_tensor = torch.zeros(26, embeddings_dim).to(device)
++
++    # Now loop over the alphabet and train/validate a linear probe for each letter:
++    for i, letter in enumerate(alphabet):
++
++        # Train the probe for the current letter:
++        all_probe_weights_tensor[i] = train_letter_presence_probe_runner(
++            letter,
++            embeddings,
++            token_strings,
++            all_rom_token_indices,
++            num_samples,
++            num_epochs,
++            patience,
++            device,
++            use_wandb,
++            wandb_group_name = group_name if use_wandb else None,
++        )
++
++    return all_probe_weights_tensor
++
++
++def train_letter_presence_probe_runner(
++        letter,
++        embeddings,
++        token_strings,
++        all_rom_token_indices,
++        num_samples,
++        num_epochs,
++        patience,
++        device,
++        use_wandb = False,
++        wandb_group_name = None,
++    ):
++
++    if use_wandb:
++
++        wandb.init(
++            project="letter_presence_probes",
++            group=wandb_group_name,
++        )
++
++        wandb.config.letter = letter
++
++        # future stuff
++        wandb.config.model_name = "gpt2"
++        wandb.config.probe_type = "LinearProbe"
++        wandb.config.train_test_split = 0.2
++        wandb.config.case_sensitive = False
++        wandb.config.batch_size = 32
++        wandb.config.learning_rate = 0.001
++
++        wandb.config.patience = patience
++        wandb.config.num_samples = num_samples
++        wandb.config.num_epochs = num_epochs
++        wandb.config.device = device
++
++
++    embeddings_dim = embeddings.shape[1]
++    probe_weights_tensor = torch.zeros(embeddings_dim).to(device)
++
++    # construct tensors of embeddings and labels for training and validation
++    all_embeddings, all_labels = get_training_data_anywhere_letter(
++        letter, num_samples, embeddings, all_rom_token_indices, token_strings)
++
++    # split the data into training and validation sets (using a function from the sklearn.model_selection module)
++    X_train, X_val, y_train, y_val = train_test_split(all_embeddings, all_labels, test_size=0.2, random_state=42, stratify=all_labels)
++
++    # Initialize model and optimizer
++    model = LinearProbe(embeddings_dim).to(device)
++    optimizer = optim.Adam(model.parameters(), lr = 0.001)
++    criterion = nn.BCEWithLogitsLoss()         # Binary cross-entropy loss with logits (because we haven't used an activation in our model)
++                                # This combines sigmoid activation, which converts logits to probabilities, and binary cross entropy loss
++                    # outputs will be probabilities 0 < p < 1 that the letter belongs to the token The label will be 0 or 1 (it doesn't or it does)
++
++    # create DataLoader for your training dataset
++    train_dataset = LetterDataset(X_train, y_train)
++    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
++
++    #X_train, y_train (embeddings and labels for training) were created above using standard methods applied to all_embeddings and all_labels tensors
++
++    # create DataLoader for your validation dataset
++    val_dataset = LetterDataset(X_val, y_val)
++    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
++
++    #X_val, y_val (embeddings and labels for validation) were likewise created above using standard methods applied to all_embeddings and all_labels tensors
++
++    # TRAINING LOOP
++
++    # initialise relevant variables for early stopping
++    best_val_loss = float('inf')
++    no_improve_count = 0
++
++    print('\n_________________________________________________\n')
++
++    for epoch in range(num_epochs):
++        model.train()  # Set the model to training mode
++        total_loss = 0.0
++
++        for batch_embeddings, batch_labels in train_loader:
++            # Move your data to the chosen device during the training loop and ensure they're float32
++            # By explicitly converting to float32, you ensure that the data being fed into your model has the expected data type, and this should resolve the error you en
++            batch_embeddings = batch_embeddings.to(device).float()
++            batch_labels = batch_labels.to(device).float()
++
++            optimizer.zero_grad()
++            outputs = model(batch_embeddings).squeeze()
++            loss = criterion(outputs, batch_labels)
++            loss.backward()
++            optimizer.step()
++
++            total_loss += loss.item()
++
++            if use_wandb:
++                wandb.log({"loss": loss.item()})
++
++        print(f"{letter}: epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
++
++    # STORE THE PROBE WEIGHTS (or "direction" in embedding space associated with this probe)
++    # The ord(letter) - ord('A') part is just an index from 0 to 25 corresponding to A to Z.
++    probe_weights_tensor = model.fc.weight.data.clone().detach()
++
++    # EVALUATION (VALIDATION) PHASE
++
++    # Set the model to evaluation mode
++    model.eval()
++
++    # Create DataLoader for validation data
++    val_dataset = LetterDataset(X_val, y_val)
++    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
++
++
++    # Keep track of correct predictions and total predictions
++    correct_preds = 0
++    total_preds = 0
++    validation_loss = 0.0
++
++    with torch.no_grad():  # Ensure no gradients are computed during validation
++        for batch_embeddings, batch_labels in val_loader:
++            batch_embeddings = batch_embeddings.to(device).float()  # Ensure embeddings are on the correct device and dtype
++            batch_labels = batch_labels.to(device).float()  # Ensure labels are on the correct device and dtype
++
++            outputs = model(batch_embeddings).squeeze()
++            loss = criterion(outputs, batch_labels)
++            validation_loss += loss.item()
++
++            # Convert outputs to probabilities
++            probs = torch.sigmoid(outputs)
++            predictions = (probs > 0.5).float()
++
++            # Update correct and total predictions
++            correct_preds += (predictions == batch_labels).sum().item()
++            total_preds += batch_labels.size(0)
++
++            # Early stopping and model checkpointing
++            if validation_loss < best_val_loss:
++                best_val_loss = validation_loss
++                best_train_loss = total_loss / len(train_loader)  # Store best training loss
++            #   torch.save(model.state_dict(), f"model_{letter}.pt")
++                no_improve_count = 0  # Reset counter
++            else:
++                no_improve_count += 1
++
++            if no_improve_count >= patience:
++                break
++
++    # Calculate accuracy and average loss
++    accuracy = correct_preds / total_preds
++    average_loss = validation_loss / len(val_loader)
++    print(f"Validation Accuracy: {accuracy * 100:.2f}%")
++    print(f"Validation Loss: {average_loss:.4f}")
++
++    if use_wandb:
++        wandb.log({"validation_loss": average_loss})
++        wandb.log({"validation_accuracy": accuracy})
++
++    return probe_weights_tensor
++
++#   # Store results in the dictionary for current letter
++#   results[letter] = {
++#       'best_train_loss': best_train_loss,
++#       'validation_loss': average_loss,
++#       'validation_accuracy': accuracy
++#   }
++
++# # OUTPUT SUMMARY
++
++# print("\nSummary:")
++# print("Letter | Best Train Loss | Validation Loss | Validation Accuracy")
++# print("-" * 75)
++# for letter, metrics in results.items():
++#     print(f"{letter}      | {metrics['best_train_loss']:.4f}           | {metrics['validation_loss']:.4f}        | {metrics['validation_accuracy']:.4f}")
++
++# # Averages:
++# avg_train_loss = sum([metrics['best_train_loss'] for metrics in results.values()]) / 26
++# avg_val_loss = sum([metrics['validation_loss'] for metrics in results.values()]) / 26
++# avg_val_accuracy = sum([metrics['validation_accuracy'] for metrics in results.values()]) / 26
++
++# print("-" * 75)
++# print(f"AVERAGE: | {avg_train_loss:.4f}           | {avg_val_loss:.4f}        | {100 * avg_val_accuracy:.2f}%")
++
++# print(probe_weights_tensor)
+diff --git a/src/train_letter_presence_probes.py b/src/train_letter_presence_probes.py
+deleted file mode 100644
+index 02beea4..0000000
+--- a/src/train_letter_presence_probes.py
++++ /dev/null
+@@ -1,169 +0,0 @@
+-import torch 
+-import torch.nn as nn 
+-import torch.optim as optim
+-
+-from torch.utils.data import DataLoader
+-from sklearn.model_selection import train_test_split
+-from src.dataset import LetterDataset
+-
+-from src.probes import LinearProbe
+-from src.get_training_data_anywhere_letter import get_training_data_anywhere_letter
+-
+-def train_letter_presence_probes(embeddings, all_rom_token_indices, token_strings):
+-
+-    # Use CUDA if possible:
+-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+-
+-    # Initialize an empty tensor to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
+-    embeddings_dim = embeddings.shape[1]
+-    probe_weights_tensor = torch.zeros(26, embeddings_dim).to(device)
+-
+-    # Define a 'patience' value for early stopping:
+-    patience = 10
+-
+-    # Define number of samples in training+validation dataset:
+-    num_samples = 10000
+-
+-    # Define number of training epochs:
+-    num_epochs = 100
+-
+-    # Now loop over the alphabet and train/validate a linear probe for each letter:
+-    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+-
+-      # construct tensors of embeddings and labels for training and validation
+-      all_embeddings, all_labels = get_training_data_anywhere_letter(
+-          letter, num_samples, embeddings, all_rom_token_indices, token_strings)
+-
+-      # split the data into training and validation sets (using a function from the sklearn.model_selection module)
+-      X_train, X_val, y_train, y_val = train_test_split(all_embeddings, all_labels, test_size=0.2, random_state=42, stratify=all_labels)
+-
+-
+-      # Initialize model and optimizer
+-      model = LinearProbe(embeddings_dim).to(device)
+-      optimizer = optim.Adam(model.parameters(), lr = 0.001)
+-      criterion = nn.BCEWithLogitsLoss()         # Binary cross-entropy loss with logits (because we haven't used an activation in our model)
+-                                    # This combines sigmoid activation, which converts logits to probabilities, and binary cross entropy loss
+-                      # outputs will be probabilities 0 < p < 1 that the letter belongs to the token The label will be 0 or 1 (it doesn't or it does)
+-
+-      # create DataLoader for your training dataset
+-      train_dataset = LetterDataset(X_train, y_train)
+-      train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+-
+-      #X_train, y_train (embeddings and labels for training) were created above using standard methods applied to all_embeddings and all_labels tensors
+-
+-      # create DataLoader for your validation dataset
+-      val_dataset = LetterDataset(X_val, y_val)
+-      val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+-
+-      #X_val, y_val (embeddings and labels for validation) were likewise created above using standard methods applied to all_embeddings and all_labels tensors
+-
+-
+-      # TRAINING LOOP
+-
+-      # initialise relevant variables for early stopping
+-      best_val_loss = float('inf')
+-      no_improve_count = 0
+-
+-      print('\n_________________________________________________\n')
+-
+-      for epoch in range(num_epochs):
+-          model.train()  # Set the model to training mode
+-          total_loss = 0.0
+-
+-          for batch_embeddings, batch_labels in train_loader:
+-              # Move your data to the chosen device during the training loop and ensure they're float32
+-              # By explicitly converting to float32, you ensure that the data being fed into your model has the expected data type, and this should resolve the error you en
+-              batch_embeddings = batch_embeddings.to(device).float()
+-              batch_labels = batch_labels.to(device).float()
+-
+-              optimizer.zero_grad()
+-              outputs = model(batch_embeddings).squeeze()
+-              loss = criterion(outputs, batch_labels)
+-              loss.backward()
+-              optimizer.step()
+-
+-              total_loss += loss.item()
+-
+-          print(f"{letter}: epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+-
+-      # STORE THE PROBE WEIGHTS (or "direction" in embedding space associated with this probe)
+-      # The ord(letter) - ord('A') part is just an index from 0 to 25 corresponding to A to Z.
+-      probe_weights_tensor[ord(letter) - ord('A')] = model.fc.weight.data.clone().detach()
+-
+-
+-      # EVALUATION (VALIDATION) PHASE
+-
+-      # Set the model to evaluation mode
+-      model.eval()
+-
+-      # Create DataLoader for validation data
+-      val_dataset = LetterDataset(X_val, y_val)
+-      val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+-
+-
+-      # Keep track of correct predictions and total predictions
+-      correct_preds = 0
+-      total_preds = 0
+-      validation_loss = 0.0
+-
+-      with torch.no_grad():  # Ensure no gradients are computed during validation
+-          for batch_embeddings, batch_labels in val_loader:
+-              batch_embeddings = batch_embeddings.to(device).float()  # Ensure embeddings are on the correct device and dtype
+-              batch_labels = batch_labels.to(device).float()  # Ensure labels are on the correct device and dtype
+-
+-              outputs = model(batch_embeddings).squeeze()
+-              loss = criterion(outputs, batch_labels)
+-              validation_loss += loss.item()
+-
+-              # Convert outputs to probabilities
+-              probs = torch.sigmoid(outputs)
+-              predictions = (probs > 0.5).float()
+-
+-              # Update correct and total predictions
+-              correct_preds += (predictions == batch_labels).sum().item()
+-              total_preds += batch_labels.size(0)
+-
+-              # Early stopping and model checkpointing
+-              if validation_loss < best_val_loss:
+-                  best_val_loss = validation_loss
+-                  best_train_loss = total_loss / len(train_loader)  # Store best training loss
+-                #   torch.save(model.state_dict(), f"model_{letter}.pt")
+-                  no_improve_count = 0  # Reset counter
+-              else:
+-                  no_improve_count += 1
+-
+-              if no_improve_count >= patience:
+-                  break
+-
+-      # Calculate accuracy and average loss
+-      accuracy = correct_preds / total_preds
+-      average_loss = validation_loss / len(val_loader)
+-      print(f"Validation Accuracy: {accuracy * 100:.2f}%")
+-      print(f"Validation Loss: {average_loss:.4f}")
+-
+-    #   # Store results in the dictionary for current letter
+-    #   results[letter] = {
+-    #       'best_train_loss': best_train_loss,
+-    #       'validation_loss': average_loss,
+-    #       'validation_accuracy': accuracy
+-    #   }
+-
+-    # # OUTPUT SUMMARY
+-
+-    # print("\nSummary:")
+-    # print("Letter | Best Train Loss | Validation Loss | Validation Accuracy")
+-    # print("-" * 75)
+-    # for letter, metrics in results.items():
+-    #     print(f"{letter}      | {metrics['best_train_loss']:.4f}           | {metrics['validation_loss']:.4f}        | {metrics['validation_accuracy']:.4f}")
+-
+-    # # Averages:
+-    # avg_train_loss = sum([metrics['best_train_loss'] for metrics in results.values()]) / 26
+-    # avg_val_loss = sum([metrics['validation_loss'] for metrics in results.values()]) / 26
+-    # avg_val_accuracy = sum([metrics['validation_accuracy'] for metrics in results.values()]) / 26
+-
+-    # print("-" * 75)
+-    # print(f"AVERAGE: | {avg_train_loss:.4f}           | {avg_val_loss:.4f}        | {100 * avg_val_accuracy:.2f}%")
+-
+-    # print(probe_weights_tensor)
+-
+-    return probe_weights_tensor
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/tests/test_probe_training_runner.py b/tests/test_probe_training_runner.py
+new file mode 100644
+index 0000000..847cb28
+--- /dev/null
++++ b/tests/test_probe_training_runner.py
+@@ -0,0 +1,43 @@
++import pytest 
++import os 
++import wandb
++from src.probe_training import all_probe_training_runner
++from src.model_loading import load_or_download_tokenizer, load_or_save_embeddings, load_or_download_model
++from src.letter_token_utils import (
++    get_token_strings,
++    get_all_rom_tokens,
++)
++
++@pytest.fixture()
++def model():
++    model = load_or_download_model(model_name="gpt2", device="cpu")
++    return model
++
++@pytest.fixture()
++def tokenizer():
++    tokenizer = load_or_download_tokenizer(model_name="gpt2")
++    return tokenizer
++
++@pytest.fixture()
++def embeddings(model):
++    embeddings = load_or_save_embeddings(model, model_name="gpt2", device="cpu")
++    return embeddings
++
++def test_all_probe_training_runner(embeddings, tokenizer):
++
++    # set wandb to offline mode
++    os.environ["WANDB_MODE"] = "online"
++
++    token_strings = get_token_strings(tokenizer)
++    _, all_rom_token_indices = get_all_rom_tokens(token_strings)
++    all_rom_token_gt2_indices = [idx for idx in all_rom_token_indices if len(token_strings[idx].lstrip()) > 2]
++
++    probe_weights_tensor = all_probe_training_runner(
++        embeddings, 
++        all_rom_token_gt2_indices,
++        token_strings,
++        alphabet="ABC",
++        use_wandb=True,
++        )
++    
++    assert probe_weights_tensor is not None
+\ No newline at end of file

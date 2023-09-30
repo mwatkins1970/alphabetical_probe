@@ -1,0 +1,73 @@
+wandb_version: 1
+
+letter:
+  desc: null
+  value: A
+model_name:
+  desc: null
+  value: gpt2
+probe_type:
+  desc: null
+  value: LinearProbe
+train_test_split:
+  desc: null
+  value: 0.2
+case_sensitive:
+  desc: null
+  value: false
+batch_size:
+  desc: null
+  value: 32
+learning_rate:
+  desc: null
+  value: 0.001
+patience:
+  desc: null
+  value: 10
+num_samples:
+  desc: null
+  value: 10000
+num_epochs:
+  desc: null
+  value: 100
+device:
+  desc: null
+  value: cpu
+_wandb:
+  desc: null
+  value:
+    python_version: 3.11.5
+    cli_version: 0.15.11
+    framework: huggingface
+    huggingface_version: 4.33.3
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1696100504.709488
+    t:
+      1:
+      - 1
+      - 5
+      - 11
+      - 49
+      - 53
+      - 55
+      - 71
+      2:
+      - 1
+      - 5
+      - 11
+      - 49
+      - 53
+      - 55
+      - 71
+      3:
+      - 16
+      - 23
+      - 24
+      4: 3.11.5
+      5: 0.15.11
+      6: 4.33.3
+      8:
+      - 4
+      - 5
+      13: darwin-arm64

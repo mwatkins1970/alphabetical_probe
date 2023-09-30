@@ -3,6 +3,8 @@ import torch
 
 # This builds a dataset for training a linear probe to classify tokens according to presence of a given adjacent letter pair
 
+# def get_indices_from_descriptor
+
 def get_training_data_anywhere_letter(
 		target_letter, 
 		num_samples, 

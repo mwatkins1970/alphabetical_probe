@@ -1,0 +1,39 @@
+{
+    "os": "macOS-13.5.1-arm64-arm-64bit",
+    "python": "3.11.5",
+    "heartbeatAt": "2023-09-30T19:01:45.192565",
+    "startedAt": "2023-09-30T19:01:44.705370",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--rootdir",
+        "/Users/josephbloom/GithubRepositories/alphabetical_probe"
+    ],
+    "state": "running",
+    "program": "/Users/josephbloom/.vscode-insiders/extensions/ms-python.python-2023.17.12721006/pythonFiles/vscode_pytest/run_pytest_script.py",
+    "codePathLocal": null,
+    "git": {
+        "remote": "git@github.com:mwatkins1970/alphabetical_probe.git",
+        "commit": "f925afd44c0ba9abe3a26fa0d1806ef67d68d7aa"
+    },
+    "email": "joseph@massdynamics.com",
+    "root": "/Users/josephbloom/GithubRepositories/alphabetical_probe",
+    "host": "Josephs-MacBook-Pro.local",
+    "username": "josephbloom",
+    "executable": "/Users/josephbloom/miniforge3/envs/alphabet/bin/python",
+    "cpu_count": 10,
+    "cpu_count_logical": 10,
+    "disk": {
+        "/": {
+            "total": 1858.1917190551758,
+            "used": 500.50246810913086
+        }
+    },
+    "gpuapple": {
+        "type": "arm",
+        "vendor": "Apple"
+    },
+    "memory": {
+        "total": 32.0
+    }
+}

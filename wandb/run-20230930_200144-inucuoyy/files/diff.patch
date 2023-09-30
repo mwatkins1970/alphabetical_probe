@@ -1,0 +1,135 @@
+diff --git a/requirements.txt b/requirements.txt
+index 51fe02e..d38a9c9 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -4,4 +4,4 @@ torch==2.0.1
+ accelerate==0.23.0
+ transformers==4.33.3
+ scikit-learn==1.3.1
+-
++wandb==0.15.11
+diff --git a/src/probe_training.py b/src/probe_training.py
+index 1275f7b..499627b 100644
+--- a/src/probe_training.py
++++ b/src/probe_training.py
+@@ -1,6 +1,7 @@
+ import torch 
+ import torch.nn as nn 
+ import torch.optim as optim
++import wandb 
+ 
+ from torch.utils.data import DataLoader
+ from sklearn.model_selection import train_test_split
+@@ -18,9 +19,14 @@ def all_probe_training_runner(
+         patience = 10, # Define a 'patience' value for early stopping:    
+         num_samples = 10000, # Define number of samples in training+validation dataset:
+         num_epochs = 100, # Define number of training epochs:
+-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
++        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
++        use_wandb = False,
+         ):
+ 
++    if use_wandb:
++        # generate unique run name
++        group_name = wandb.util.generate_id() + "_" + alphabet
++
+     # Initialize an empty tensor to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
+     embeddings_dim = embeddings.shape[1]
+     all_probe_weights_tensor = torch.zeros(26, embeddings_dim).to(device)
+@@ -38,6 +44,8 @@ def all_probe_training_runner(
+             num_epochs,
+             patience,
+             device,
++            use_wandb,
++            wandb_group_name = group_name if use_wandb else None,
+         )
+ 
+     return all_probe_weights_tensor
+@@ -52,10 +60,33 @@ def train_letter_presence_probe_runner(
+         num_epochs,
+         patience,
+         device,
++        use_wandb = False,
++        wandb_group_name = None,
+     ):
+ 
+-    embeddings_dim = embeddings.shape[1]
++    if use_wandb:
++
++        config = {
++            "letter": letter,
++            "model_name": "gpt2",
++            "probe_type": "LinearProbe",
++            "train_test_split": 0.2,
++            "case_sensitive": False,
++            "batch_size": 32,
++            "learning_rate": 0.001,
++            "patience": patience,
++            "num_samples": num_samples,
++            "num_epochs": num_epochs,
++            "device": device,
++        }
++
++        wandb.init(
++            project="letter_presence_probes",
++            group=wandb_group_name,
++            config=config,
++        )
+ 
++    embeddings_dim = embeddings.shape[1]
+     probe_weights_tensor = torch.zeros(embeddings_dim).to(device)
+ 
+     # construct tensors of embeddings and labels for training and validation
+@@ -110,6 +141,9 @@ def train_letter_presence_probe_runner(
+ 
+             total_loss += loss.item()
+ 
++            if use_wandb:
++                wandb.log({"loss": loss.item()})
++
+         print(f"{letter}: epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+ 
+     # STORE THE PROBE WEIGHTS (or "direction" in embedding space associated with this probe)
+@@ -166,6 +200,10 @@ def train_letter_presence_probe_runner(
+     print(f"Validation Accuracy: {accuracy * 100:.2f}%")
+     print(f"Validation Loss: {average_loss:.4f}")
+ 
++    if use_wandb:
++        wandb.log({"validation_loss": average_loss})
++        wandb.log({"validation_accuracy": accuracy})
++
+     return probe_weights_tensor
+ 
+ #   # Store results in the dictionary for current letter
+diff --git a/tests/test_probe_training_runner.py b/tests/test_probe_training_runner.py
+index 64f8285..847cb28 100644
+--- a/tests/test_probe_training_runner.py
++++ b/tests/test_probe_training_runner.py
+@@ -1,5 +1,6 @@
+ import pytest 
+-
++import os 
++import wandb
+ from src.probe_training import all_probe_training_runner
+ from src.model_loading import load_or_download_tokenizer, load_or_save_embeddings, load_or_download_model
+ from src.letter_token_utils import (
+@@ -24,6 +25,9 @@ def embeddings(model):
+ 
+ def test_all_probe_training_runner(embeddings, tokenizer):
+ 
++    # set wandb to offline mode
++    os.environ["WANDB_MODE"] = "online"
++
+     token_strings = get_token_strings(tokenizer)
+     _, all_rom_token_indices = get_all_rom_tokens(token_strings)
+     all_rom_token_gt2_indices = [idx for idx in all_rom_token_indices if len(token_strings[idx].lstrip()) > 2]
+@@ -33,7 +37,7 @@ def test_all_probe_training_runner(embeddings, tokenizer):
+         all_rom_token_gt2_indices,
+         token_strings,
+         alphabet="ABC",
++        use_wandb=True,
+         )
+     
+-
+     assert probe_weights_tensor is not None
+\ No newline at end of file
