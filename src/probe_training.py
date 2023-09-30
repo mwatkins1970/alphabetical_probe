@@ -60,6 +60,7 @@ def train_letter_presence_probe_runner(
         num_epochs,
         patience,
         device,
+        task = "letter_presence",
         use_wandb = False,
         wandb_group_name = None,
     ):
