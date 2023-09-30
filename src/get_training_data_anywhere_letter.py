@@ -1,3 +1,6 @@
+import random
+import torch
+
 # This builds a dataset for training a linear probe to classify tokens according to presence of a given adjacent letter pair
 
 def get_training_data_anywhere_letter(target_letter, num_samples, embeddings, all_rom_token_gt2_indices):

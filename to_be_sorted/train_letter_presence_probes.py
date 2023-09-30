@@ -1,22 +1,10 @@
-import torch 
-import torch.nn as nn 
-import torch.optim as optim
-
-from torch.utils.data import DataLoader
-from sklearn.model_selection import train_test_split
-from src.dataset import LetterDataset
-
-from src.probes import LinearProbe
-from get_training_data_anywhere_letter import get_training_data_anywhere_letter
-
 def train_letter_presence_probes(embeddings, letter_presence_dict, all_rom_token_indices):
 
     # Use CUDA if possible:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Initialize an empty tensor to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
-    embeddings_dim = embeddings.shape[1]
-    probe_weights_tensor = torch.zeros(26, embeddings_dim).to(device)
+    probe_weights_tensor = torch.zeros(26, 4096)
 
     # Define a 'patience' value for early stopping:
     patience = 10
@@ -33,15 +21,14 @@ def train_letter_presence_probes(embeddings, letter_presence_dict, all_rom_token
     for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
 
       # construct tensors of embeddings and labels for training and validation
-      all_embeddings, all_labels = get_training_data_anywhere_letter(
-          letter, num_samples, embeddings, letter_presence_dict, all_rom_token_indices)
+      all_embeddings, all_labels = get_training_data(letter, num_samples, embeddings, letter_presence_dict, all_rom_token_indices)
 
       # split the data into training and validation sets (using a function from the sklearn.model_selection module)
       X_train, X_val, y_train, y_val = train_test_split(all_embeddings, all_labels, test_size=0.2, random_state=42, stratify=all_labels)
 
 
       # Initialize model and optimizer
-      model = LinearProbe(embeddings_dim).to(device)
+      model = LinearProbe(4096).to(device)
       optimizer = optim.Adam(model.parameters(), lr = 0.001)
       criterion = nn.BCEWithLogitsLoss()         # Binary cross-entropy loss with logits (because we haven't used an activation in our model)
                                     # This combines sigmoid activation, which converts logits to probabilities, and binary cross entropy loss
@@ -143,29 +130,29 @@ def train_letter_presence_probes(embeddings, letter_presence_dict, all_rom_token
       print(f"Validation Accuracy: {accuracy * 100:.2f}%")
       print(f"Validation Loss: {average_loss:.4f}")
 
-    #   # Store results in the dictionary for current letter
-    #   results[letter] = {
-    #       'best_train_loss': best_train_loss,
-    #       'validation_loss': average_loss,
-    #       'validation_accuracy': accuracy
-    #   }
+      # Store results in the dictionary for current letter
+      results[letter] = {
+          'best_train_loss': best_train_loss,
+          'validation_loss': average_loss,
+          'validation_accuracy': accuracy
+      }
 
-    # # OUTPUT SUMMARY
+    # OUTPUT SUMMARY
 
-    # print("\nSummary:")
-    # print("Letter | Best Train Loss | Validation Loss | Validation Accuracy")
-    # print("-" * 75)
-    # for letter, metrics in results.items():
-    #     print(f"{letter}      | {metrics['best_train_loss']:.4f}           | {metrics['validation_loss']:.4f}        | {metrics['validation_accuracy']:.4f}")
+    print("\nSummary:")
+    print("Letter | Best Train Loss | Validation Loss | Validation Accuracy")
+    print("-" * 75)
+    for letter, metrics in results.items():
+        print(f"{letter}      | {metrics['best_train_loss']:.4f}           | {metrics['validation_loss']:.4f}        | {metrics['validation_accuracy']:.4f}")
 
-    # # Averages:
-    # avg_train_loss = sum([metrics['best_train_loss'] for metrics in results.values()]) / 26
-    # avg_val_loss = sum([metrics['validation_loss'] for metrics in results.values()]) / 26
-    # avg_val_accuracy = sum([metrics['validation_accuracy'] for metrics in results.values()]) / 26
+    # Averages:
+    avg_train_loss = sum([metrics['best_train_loss'] for metrics in results.values()]) / 26
+    avg_val_loss = sum([metrics['validation_loss'] for metrics in results.values()]) / 26
+    avg_val_accuracy = sum([metrics['validation_accuracy'] for metrics in results.values()]) / 26
 
-    # print("-" * 75)
-    # print(f"AVERAGE: | {avg_train_loss:.4f}           | {avg_val_loss:.4f}        | {100 * avg_val_accuracy:.2f}%")
+    print("-" * 75)
+    print(f"AVERAGE: | {avg_train_loss:.4f}           | {avg_val_loss:.4f}        | {100 * avg_val_accuracy:.2f}%")
 
-    # print(probe_weights_tensor)
+    print(probe_weights_tensor)
 
     return probe_weights_tensor
