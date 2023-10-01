@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from src.dataset import LetterDataset
 
 from src.probes import LinearProbe
-from src.get_training_data_anywhere_letter import get_training_data_anywhere_letter
+from src.get_training_data import get_training_data
 
 
 def all_probe_training_runner(
@@ -91,8 +91,8 @@ def train_letter_presence_probe_runner(
     probe_weights_tensor = torch.zeros(embeddings_dim).to(device)
 
     # construct tensors of embeddings and labels for training and validation
-    all_embeddings, all_labels = get_training_data_anywhere_letter(
-        letter, num_samples, embeddings, all_rom_token_indices, token_strings)
+    all_embeddings, all_labels = get_training_data(
+        "anywhere", letter, num_samples, embeddings, all_rom_token_indices, token_strings)
 
     # split the data into training and validation sets (using a function from the sklearn.model_selection module)
     X_train, X_val, y_train, y_val = train_test_split(all_embeddings, all_labels, test_size=0.2, random_state=42, stratify=all_labels)

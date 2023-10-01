@@ -56,6 +56,8 @@ def get_letter_presence_dict(all_rom_token_indices, token_strings):
 
     print(f"There are {len(letter_presence_dict[letter])} all-Roman tokens containing {letter} or {letter.lower()}")
 
+    return letter_presence_dict
+
 def get_letter_starting_dict(all_rom_token_indices, token_strings):
 
     letter_starting_dict = {}
@@ -68,6 +70,8 @@ def get_letter_starting_dict(all_rom_token_indices, token_strings):
                 letter_starting_dict[letter].append(all_rom_token_indices[j])
 
         print(f"There are {len(letter_starting_dict[letter])} all-Roman tokens starting {letter} or {letter.lower()}")
+
+    return letter_starting_dict
 
 def get_token_length_dict(all_rom_token_indices, token_strings):
 
@@ -97,6 +101,5 @@ def get_distinct_letters_dict(all_rom_token_indices, token_strings):
                 distinct_letters_dict[num_distinct_letters].append(all_rom_token_indices[k])
 
     print(f"There are {len(distinct_letters_dict[num_distinct_letters])} all-Roman tokens with {num_distinct_letters} distinct letters")
-
 
     return distinct_letters_dict
