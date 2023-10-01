@@ -21,6 +21,8 @@ def all_probe_training_runner(
         num_epochs = 100, # Define number of training epochs:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         use_wandb = False,
+        probe_type = 'linear',
+        criterion = "anywhere",   # "anywhere" or "starting"
         ):
 
     if use_wandb:
@@ -31,12 +33,13 @@ def all_probe_training_runner(
     embeddings_dim = embeddings.shape[1]
     all_probe_weights_tensor = torch.zeros(26, embeddings_dim).to(device)
 
-    # Now loop over the alphabet and train/validate a linear probe for each letter:
+    # Now loop over the alphabet and train/validate a probe for each letter:
+
     for i, letter in enumerate(alphabet):
 
         # Train the probe for the current letter:
-        all_probe_weights_tensor[i] = train_letter_presence_probe_runner(
-            letter,
+        all_probe_weights_tensor[i] = train_letter_probe_runner(
+            letter,   
             embeddings,
             token_strings,
             all_rom_token_indices,
@@ -45,14 +48,16 @@ def all_probe_training_runner(
             patience,
             device,
             use_wandb,
+            probe_type,
+            criterion,
             wandb_group_name = group_name if use_wandb else None,
         )
 
     return all_probe_weights_tensor
 
 
-def train_letter_presence_probe_runner(
-        letter,
+def train_letter_probe_runner(
+        letter,      
         embeddings,
         token_strings,
         all_rom_token_indices,
@@ -60,17 +65,19 @@ def train_letter_presence_probe_runner(
         num_epochs,
         patience,
         device,
-        task = "letter_presence",
         use_wandb = False,
+        probe_type,
+        criterion,
         wandb_group_name = None,
     ):
 
     if use_wandb:
 
         config = {
-            "letter": letter,
+            "letter": letter,            #
+            "criterion": criterion,
             "model_name": "gpt2",
-            "probe_type": "LinearProbe",
+            "probe_type": probe_type,
             "train_test_split": 0.2,
             "case_sensitive": False,
             "batch_size": 32,
@@ -92,13 +99,17 @@ def train_letter_presence_probe_runner(
 
     # construct tensors of embeddings and labels for training and validation
     all_embeddings, all_labels = get_training_data(
-        "anywhere", letter, num_samples, embeddings, all_rom_token_indices, token_strings)
+        criterion, letter, num_samples, embeddings, all_rom_token_indices, token_strings)
 
     # split the data into training and validation sets (using a function from the sklearn.model_selection module)
     X_train, X_val, y_train, y_val = train_test_split(all_embeddings, all_labels, test_size=0.2, random_state=42, stratify=all_labels)
 
-    # Initialize model and optimizer
-    model = LinearProbe(embeddings_dim).to(device)
+    # Initialize model and optimizer based on probe_type
+    if probe_type == 'linear':
+        model = LinearProbe(embeddings_dim).to(device)
+    elif probe_type == 'mlp':
+        model = MLPProbe(embeddings_dim, hidden_dim=128, num_hidden_layers=2).to(device)
+
     optimizer = optim.Adam(model.parameters(), lr = 0.001)
     criterion = nn.BCEWithLogitsLoss()         # Binary cross-entropy loss with logits (because we haven't used an activation in our model)
                                 # This combines sigmoid activation, which converts logits to probabilities, and binary cross entropy loss
