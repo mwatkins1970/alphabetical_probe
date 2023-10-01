@@ -2,14 +2,16 @@ import torch
 import torch.nn as nn 
 import torch.optim as optim
 import wandb 
+import numpy as np
 
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score
+
 from src.dataset import LetterDataset
 
 from src.probes import LinearProbe
 from src.get_training_data import get_training_data
-
 
 def all_probe_training_runner(
         embeddings, 
@@ -22,7 +24,7 @@ def all_probe_training_runner(
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         use_wandb = False,
         probe_type = 'linear',
-        criterion = "anywhere",   # "anywhere" or "starting"
+        criteria_mode = "anywhere",   # "anywhere" or "starting"
         ):
 
     if use_wandb:
@@ -49,7 +51,7 @@ def all_probe_training_runner(
             device,
             use_wandb,
             probe_type,
-            criterion,
+            criteria_mode,
             wandb_group_name = group_name if use_wandb else None,
         )
 
@@ -67,7 +69,7 @@ def train_letter_probe_runner(
         device,
         use_wandb = False,
         probe_type,
-        criterion,
+        criteria_mode,
         wandb_group_name = None,
     ):
 
@@ -75,7 +77,7 @@ def train_letter_probe_runner(
 
         config = {
             "letter": letter,            #
-            "criterion": criterion,
+            "criterion": criteria_mode,
             "model_name": "gpt2",
             "probe_type": probe_type,
             "train_test_split": 0.2,
@@ -99,7 +101,7 @@ def train_letter_probe_runner(
 
     # construct tensors of embeddings and labels for training and validation
     all_embeddings, all_labels = get_training_data(
-        criterion, letter, num_samples, embeddings, all_rom_token_indices, token_strings)
+        criteria_mode, letter, num_samples, embeddings, all_rom_token_indices, token_strings)
 
     # split the data into training and validation sets (using a function from the sklearn.model_selection module)
     X_train, X_val, y_train, y_val = train_test_split(all_embeddings, all_labels, test_size=0.2, random_state=42, stratify=all_labels)
@@ -113,7 +115,7 @@ def train_letter_probe_runner(
     optimizer = optim.Adam(model.parameters(), lr = 0.001)
     criterion = nn.BCEWithLogitsLoss()         # Binary cross-entropy loss with logits (because we haven't used an activation in our model)
                                 # This combines sigmoid activation, which converts logits to probabilities, and binary cross entropy loss
-                    # outputs will be probabilities 0 < p < 1 that the letter belongs to the token The label will be 0 or 1 (it doesn't or it does)
+                    # outputs will be probabilities 0 < p < 1 that the letter belongs to the token. The label will be 0 or 1 (it doesn't or it does).
 
     # create DataLoader for your training dataset
     train_dataset = LetterDataset(X_train, y_train)
@@ -178,13 +180,18 @@ def train_letter_probe_runner(
     validation_loss = 0.0
 
     with torch.no_grad():  # Ensure no gradients are computed during validation
+        all_labels = []  # Store all true labels
+        all_predictions = []  # Store all model predictions
+
         for batch_embeddings, batch_labels in val_loader:
             batch_embeddings = batch_embeddings.to(device).float()  # Ensure embeddings are on the correct device and dtype
             batch_labels = batch_labels.to(device).float()  # Ensure labels are on the correct device and dtype
 
             outputs = model(batch_embeddings).squeeze()
+
+            # Calculate loss on validation data
             loss = criterion(outputs, batch_labels)
-            validation_loss += loss.item()
+            validation_loss += loss.item()  # Update validation loss
 
             # Convert outputs to probabilities
             probs = torch.sigmoid(outputs)
@@ -194,29 +201,51 @@ def train_letter_probe_runner(
             correct_preds += (predictions == batch_labels).sum().item()
             total_preds += batch_labels.size(0)
 
-            # Early stopping and model checkpointing
-            if validation_loss < best_val_loss:
-                best_val_loss = validation_loss
-                best_train_loss = total_loss / len(train_loader)  # Store best training loss
-            #   torch.save(model.state_dict(), f"model_{letter}.pt")
-                no_improve_count = 0  # Reset counter
-            else:
-                no_improve_count += 1
+            # Append batch labels and predictions to all_labels and all_predictions
+            all_labels.append(batch_labels.cpu().numpy())
+            all_predictions.append(predictions.cpu().numpy())
 
-            if no_improve_count >= patience:
-                break
+
+        # Flatten all_labels and all_predictions lists and convert to numpy arrays
+        all_labels = np.concatenate(all_labels)
+        all_predictions = np.concatenate(all_predictions)
+
+        # Compute F1 Score
+        f1 = f1_score(all_labels, all_predictions)
+
+        validation_loss /= len(val_loader)  # Get the average validation loss
+
+        # Early stopping and model checkpointing
+        if validation_loss < best_val_loss:
+            best_val_loss = validation_loss
+            best_train_loss = total_loss / len(train_loader)  # Store best training loss
+        #   torch.save(model.state_dict(), f"model_{letter}.pt")
+            no_improve_count = 0  # Reset counter
+        else:
+            no_improve_count += 1
+
+        if no_improve_count >= patience:
+            break
+
 
     # Calculate accuracy and average loss
     accuracy = correct_preds / total_preds
-    average_loss = validation_loss / len(val_loader)
     print(f"Validation Accuracy: {accuracy * 100:.2f}%")
-    print(f"Validation Loss: {average_loss:.4f}")
+    print(f"Validation Loss: {validation_loss:.4f}")
+    print(f"F1 Score: {f1:.4f}")
 
     if use_wandb:
         wandb.log({"validation_loss": average_loss})
         wandb.log({"validation_accuracy": accuracy})
+        wandb.log({"f1_score": f1})
 
     return probe_weights_tensor
+
+
+
+
+
+
 
 #   # Store results in the dictionary for current letter
 #   results[letter] = {
