@@ -75,26 +75,26 @@ def train_letter_probe_runner(
 
         if use_wandb:
 
-        config = {
-            "letter": letter,            
-            "criteria_mode": criteria_mode,
-            "model_name": "gpt2",
-            "probe_type": probe_type,
-            "train_test_split": 0.2,
-            "case_sensitive": False,
-            "batch_size": 32,
-            "learning_rate": 0.001,
-            "patience": patience,
-            "num_samples": num_samples,
-            "num_epochs": num_epochs,
-            "device": device,
-        }
-        
-        wandb.init(
-            project="letter_presence_probes",
-            group=wandb_group_name,
-            config=config,
-        )
+                config = {
+                    "letter": letter,            
+                    "criteria_mode": criteria_mode,
+                    "model_name": "gpt2",
+                    "probe_type": probe_type,
+                    "train_test_split": 0.2,
+                    "case_sensitive": False,
+                    "batch_size": 32,
+                    "learning_rate": 0.001,
+                    "patience": patience,
+                    "num_samples": num_samples,
+                    "num_epochs": num_epochs,
+                    "device": device,
+                }
+                
+                wandb.init(
+                    project="letter_presence_probes",
+                    group=wandb_group_name,
+                    config=config,
+                )
 
         embeddings_dim = embeddings.shape[1]
         probe_weights_tensor = torch.zeros(embeddings_dim).to(device)
