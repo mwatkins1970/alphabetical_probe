@@ -235,7 +235,7 @@ def train_letter_probe_runner(
     print(f"F1 Score: {f1:.4f}")
 
     if use_wandb:
-        wandb.log({"validation_loss": average_loss})
+        wandb.log({"validation_loss": validation_loss})
         wandb.log({"validation_accuracy": accuracy})
         wandb.log({"f1_score": f1})
 
@@ -247,7 +247,7 @@ def train_letter_probe_runner(
 #   # Store results in the dictionary for current letter
 #   results[letter] = {
 #       'best_train_loss': best_train_loss,
-#       'validation_loss': average_loss,
+#       'validation_loss': validation_loss,
 #       'validation_accuracy': accuracy
 #   }
 
