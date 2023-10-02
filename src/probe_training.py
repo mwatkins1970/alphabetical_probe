@@ -223,7 +223,8 @@ def train_letter_probe_runner(
                         no_improve_count = 0  # Reset counter
                 else:
                         no_improve_count += 1
-                
+
+                #line-renumbering experiment
                 if no_improve_count >= patience:        
                         break
                 
