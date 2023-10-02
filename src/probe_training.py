@@ -49,9 +49,9 @@ def all_probe_training_runner(
             num_epochs,
             patience,
             device,
-            use_wandb,
             probe_type,
             criteria_mode,
+            use_wandb,
             wandb_group_name = group_name if use_wandb else None,
         )
 
@@ -67,9 +67,9 @@ def train_letter_probe_runner(
         num_epochs,
         patience,
         device,
-        use_wandb = False,
         probe_type,
         criteria_mode,
+        use_wandb = False,
         wandb_group_name = None,
     ):
 
