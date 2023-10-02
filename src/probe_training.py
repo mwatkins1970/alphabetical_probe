@@ -222,10 +222,10 @@ def train_letter_probe_runner(
         #   torch.save(model.state_dict(), f"model_{letter}.pt")
             no_improve_count = 0  # Reset counter
         else:
-            no_improve_count += 1
+                no_improve_count += 1
 
-        if no_improve_count >= patience:
-            break
+        if no_improve_count >= patience:        
+                break
 
 
     # Calculate accuracy and average loss
