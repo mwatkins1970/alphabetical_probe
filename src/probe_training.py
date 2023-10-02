@@ -180,30 +180,30 @@ def train_letter_probe_runner(
                 validation_loss = 0.0
                 
                 with torch.no_grad():  # Ensure no gradients are computed during validation
-                all_labels = []  # Store all true labels
-                all_predictions = []  # Store all model predictions
+                        all_labels = []  # Store all true labels
+                        all_predictions = []  # Store all model predictions
                 
-                for batch_embeddings, batch_labels in val_loader:
-                        batch_embeddings = batch_embeddings.to(device).float()  # Ensure embeddings are on the correct device and dtype
-                        batch_labels = batch_labels.to(device).float()  # Ensure labels are on the correct device and dtype
+                        for batch_embeddings, batch_labels in val_loader:
+                                batch_embeddings = batch_embeddings.to(device).float()  # Ensure embeddings are on the correct device and dtype
+                                batch_labels = batch_labels.to(device).float()  # Ensure labels are on the correct device and dtype
+                                
+                                outputs = model(batch_embeddings).squeeze()
+                                
+                                # Calculate loss on validation data
+                                loss = criterion(outputs, batch_labels)
+                                validation_loss += loss.item()  # Update validation loss
+                                
+                                # Convert outputs to probabilities
+                                probs = torch.sigmoid(outputs)
+                                predictions = (probs > 0.5).float()
+                                
+                                # Update correct and total predictions
+                                correct_preds += (predictions == batch_labels).sum().item()
+                                total_preds += batch_labels.size(0)
                         
-                        outputs = model(batch_embeddings).squeeze()
-                        
-                        # Calculate loss on validation data
-                        loss = criterion(outputs, batch_labels)
-                        validation_loss += loss.item()  # Update validation loss
-                        
-                        # Convert outputs to probabilities
-                        probs = torch.sigmoid(outputs)
-                        predictions = (probs > 0.5).float()
-                        
-                        # Update correct and total predictions
-                        correct_preds += (predictions == batch_labels).sum().item()
-                        total_preds += batch_labels.size(0)
-                        
-                        # Append batch labels and predictions to all_labels and all_predictions
-                        all_labels.append(batch_labels.cpu().numpy())
-                        all_predictions.append(predictions.cpu().numpy())
+                                # Append batch labels and predictions to all_labels and all_predictions
+                                all_labels.append(batch_labels.cpu().numpy())
+                                all_predictions.append(predictions.cpu().numpy())
                 
                 
                         # Flatten all_labels and all_predictions lists and convert to numpy arrays
