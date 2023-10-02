@@ -24,7 +24,7 @@ def all_probe_training_runner(
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         use_wandb = False,
         probe_type = 'linear',
-        criteria_mode = "anywhere",   # "anywhere" or "starting"
+        criteria_mode = "anywhere",   # "anywhere", "starting" or "posN" (where N is a digit)
         ):
 
     if use_wandb:
@@ -76,8 +76,8 @@ def train_letter_probe_runner(
     if use_wandb:
 
         config = {
-            "letter": letter,            #
-            "criterion": criteria_mode,
+            "letter": letter,            
+            "criteria_mode": criteria_mode,
             "model_name": "gpt2",
             "probe_type": probe_type,
             "train_test_split": 0.2,
@@ -240,9 +240,6 @@ def train_letter_probe_runner(
         wandb.log({"f1_score": f1})
 
     return probe_weights_tensor
-
-
-
 
 
 
