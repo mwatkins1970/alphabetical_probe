@@ -5,6 +5,7 @@
 
 import re
 import random
+import torch
 
 def get_training_data(
 		criteria_mode, 
