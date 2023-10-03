@@ -40,9 +40,9 @@ def load_or_download_model_tok_emb(model_name="EleutherAI/gpt-j-6B", device="cpu
         os.makedirs(f'./models/{model_name}', exist_ok=True)
 
     tokenizer = load_or_download_tokenizer(model_name)
+    embeddings = load_or_save_embeddings(GPTmodel, model_name, device)
     GPTmodel = load_or_download_model(model_name, device)
     GPTmodel.eval()
-    embeddings = load_or_save_embeddings(GPTmodel, model_name, device)
-
+    
     return tokenizer, GPTmodel, embeddings
 
