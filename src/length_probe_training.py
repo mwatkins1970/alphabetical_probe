@@ -8,10 +8,27 @@ from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
 
-from src.dataset import LetterDataset
+# These have been changed so this module runs in Colab
+try:
+    from src.dataset import LetterDataset
+except ImportError:
+    from dataset import LetterDataset
 
-from src.probes import LinearProbe
-from src.get_training_data import get_training_data
+try:
+    from src.probes import LinearProbe
+except ImportError:
+    from probes import LinearProbe
+
+try:
+    from src.MLPs import MLPProbe
+except ImportError:
+    from MLPs import MLPProbe
+
+try:
+    from src.get_training_data import get_training_data
+except ImportError:
+    from get_training_data import get_training_data
+
 
 
 def create_and_log_artifact(tensor, name, artifact_type, description):
