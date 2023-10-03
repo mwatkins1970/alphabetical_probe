@@ -13,6 +13,24 @@ from src.dataset import LetterDataset
 from src.probes import LinearProbe
 from src.get_training_data import get_training_data
 
+
+def create_and_log_artifact(tensor, name, artifact_type, description):
+    # Save the tensor to a file
+    filename = f"{name}.pt"
+    torch.save(tensor, filename)
+
+    # Create a new artifact
+    artifact = wandb.Artifact(
+        name=name,
+        type=artifact_type,
+        description=description,
+    )
+    artifact.add_file(filename)
+
+    # Log the artifact
+    wandb.log_artifact(artifact)
+
+
 def all_probe_training_runner(
         embeddings, 
         all_rom_token_indices, 
@@ -54,6 +72,10 @@ def all_probe_training_runner(
                 use_wandb,
                 wandb_group_name = group_name if use_wandb else None,
                 )
+
+        if use_wandb:
+            create_and_log_artifact(
+                all_probe_weights_tensor, "all_probe_weights", "model_tensors", "All case-insensitive letter presence probe weights tensor")
 
         return all_probe_weights_tensor
 
@@ -239,7 +261,18 @@ def train_letter_probe_runner(
                                 wandb.log({"validation_loss": validation_loss})
                                 wandb.log({"validation_accuracy": accuracy})
                                 wandb.log({"f1_score": f1})
-                        
+
+                # Before returning the tensor, log it as an artifact if wandb logging is used
+                if use_wandb:
+                    artifact_name = f"probe_weight_for_{letter}"
+                    create_and_log_artifact(
+                        probe_weights_tensor,
+                        artifact_name,
+                        "model_tensors",
+                        f"Letter presence probe weight tensor for {letter}"
+                    )
+    
+
                 return probe_weights_tensor
                 
                 
