@@ -272,7 +272,6 @@ def train_letter_probe_runner(
                         f"Letter presence probe weight tensor for {letter}"
                     )
     
-
                 return probe_weights_tensor
                 
                 

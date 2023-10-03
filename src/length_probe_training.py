@@ -13,6 +13,25 @@ from src.dataset import LetterDataset
 from src.probes import LinearProbe
 from src.get_training_data import get_training_data
 
+
+def create_and_log_artifact(tensor, name, artifact_type, description):
+    # Save the tensor to a file
+    filename = f"{name}.pt"
+    torch.save(tensor, filename)
+
+    # Create a new artifact
+    artifact = wandb.Artifact(
+        name=name,
+        type=artifact_type,
+        description=description,
+    )
+    artifact.add_file(filename)
+
+    # Log the artifact
+    wandb.log_artifact(artifact)
+
+
+
 def all_length_probe_training_runner(
         embeddings, 
         all_rom_token_indices, 
@@ -28,7 +47,11 @@ def all_length_probe_training_runner(
 
     if use_wandb:
         # generate unique run name
-        group_name = wandb.util.generate_id() + "_letter_numbers"
+        group_name = wandb.util.generate_id() + "_letter_numbers" 
+        if criteria_mode == "length":
+          group_name += "_total"
+        elif criteria_mode == "distinct":
+          group_name += "_distinct"
 
     # Initialize an empty tensor to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
     embeddings_dim = embeddings.shape[1]
@@ -53,6 +76,15 @@ def all_length_probe_training_runner(
             criteria_mode,
             wandb_group_name = group_name if use_wandb else None,
         )
+
+    if use_wandb:
+        if criteria_mode = "length":
+          artifact_name = "All 15 total letter count probe weights tensor"
+        elif criteria_mode = "distinct":
+          artifact_name = "All 15 distinct letter count probe weights tensor"
+        create_and_log_artifact(
+            all_length_weights_tensor, "all_length_probe_weights", "model_tensors", artifact_name)
+
 
     return length_probe_weights_tensor
 
@@ -236,6 +268,18 @@ def train_number_probe_runner(
         wandb.log({"validation_loss": average_loss})
         wandb.log({"validation_accuracy": accuracy})
         wandb.log({"f1_score": f1})
+
+
+    # Before returning the tensor, log it as an artifact if wandb logging is used
+    if use_wandb:
+        artifact_name = f"probe_weights_for_{critera_mode}={num_letters}"
+        create_and_log_artifact(
+            length_probe_weights_tensor,
+            artifact_name,
+            "model_tensors",
+            f"Letter count probe weights tensor for {critera_mode} = {num_letters}"
+        )
+
 
     return length_probe_weights_tensor
 
