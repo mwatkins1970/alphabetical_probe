@@ -2,6 +2,30 @@
 import torch
 import torch.functional as F
 
+def token_setup(embeddings):
+    token_strings = [tokenizer.decode([i]) for i in range(50257)]
+    num_tokens = len(token_strings)
+
+    print(f"There are {num_tokens} tokens.")
+
+    all_rom_tokens = []			#initialise list of all-roman tokens
+    all_rom_token_indices = []
+
+    for i in range(num_tokens):
+      all_rom = True                       # Is token_string[i] all roman characters? Assume to begin that it is.
+      for ch in range(len(token_strings[i])):
+        if token_strings[i][ch] not in ' abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ':
+          all_rom = False
+      if all_rom == True and token_strings[i] not in [' ', '  ', '   ', '    ', '     ', '      ', '       ', '        ']:  # eliminate all the all-space tokens
+        all_rom_tokens.append(token_strings[i])
+        all_rom_token_indices.append(i)
+
+    num_all_rom_tokens = len(all_rom_tokens)
+    print(f"There are {num_all_rom_tokens} all-Roman tokens.")
+
+    return token_strings, all_rom_token_indices
+
+
 def closest_tokens(emb, top_k, token_strings, embeddings):
     
     # Compute cosine similarity and subtract from 1 to get distance

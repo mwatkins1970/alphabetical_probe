@@ -75,6 +75,7 @@ def all_probe_training_runner(
 
         for i, letter in enumerate(alphabet):
 
+                print(f"Working on letter {letter.upper()}")
                 # Train the probe for the current letter:
                 all_probe_weights_tensor[i] = train_letter_probe_runner(
                 letter,   
