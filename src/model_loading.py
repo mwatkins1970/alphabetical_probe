@@ -24,7 +24,7 @@ def load_or_download_model(model_name, device):
         torch.save(model, MODEL_PATH)
         return model
 
-def load_or_save_embeddings(model, model_name, device):
+def load_or_save_embeddings(model_name, device):
     EMBEDDINGS_PATH = f"./models/{model_name}/embeddings.pt"
     if os.path.exists(EMBEDDINGS_PATH):
         print(f'Loading {model_name} embeddings from local storage...')
