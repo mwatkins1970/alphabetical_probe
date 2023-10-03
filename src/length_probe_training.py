@@ -47,7 +47,7 @@ def all_length_probe_training_runner(
 
     if use_wandb:
         # generate unique run name
-        group_name = wandb.util.generate_id() + "_letter_numbers" 
+        group_name = wandb.util.generate_id() + "_letter_numbers_" + criteria_mode 
         if criteria_mode == "length":
           group_name += "_total"
         elif criteria_mode == "distinct":
