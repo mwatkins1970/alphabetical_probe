@@ -2,7 +2,9 @@
 import torch
 import torch.functional as F
 
-def token_setup(embeddings):
+
+
+def token_setup(tokenizer):
     token_strings = [tokenizer.decode([i]) for i in range(50257)]
     num_tokens = len(token_strings)
 

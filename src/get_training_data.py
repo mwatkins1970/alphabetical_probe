@@ -4,6 +4,7 @@
 #  or else should be a positive integer in string form if criterion = "length" or "distinct"
 
 import re
+import random
 
 def get_training_data(
 		criteria_mode, 
@@ -12,6 +13,7 @@ def get_training_data(
 		embeddings, 
 		all_rom_token_gt2_indices,
 		token_strings):
+
 
 	# Fetch indices for tokens that match the required pattern
 	if criteria_mode == "anywhere": #required pattern is target string appears anywhere as substring of token
