@@ -1,7 +1,6 @@
 # This finds the closest top_k tokens to a given embedding vector 'emb' (this could be one row of a shape-(26,4096) probes tensor)
 import torch
-import torch.functional as F
-
+import torch.nn.functional as F
 
 
 def token_setup(tokenizer):
@@ -29,6 +28,9 @@ def token_setup(tokenizer):
 
 
 def closest_tokens(emb, top_k, token_strings, embeddings):
+
+    # Make sure all tensors are on the same device as `emb`
+    embeddings = embeddings.to(emb.device)
     
     # Compute cosine similarity and subtract from 1 to get distance
     # Higher similarity means lower distance

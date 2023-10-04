@@ -135,7 +135,7 @@ def train_letter_probe_runner(
         probe_weights_tensor = torch.zeros(embeddings_dim).to(device)
         
         # construct tensors of embeddings and labels for training and validation
-        print("\n\n\nSHOULD BE ACCESSING get_training_data NOW\n\n\n")
+
         all_embeddings, all_labels = get_training_data(
         criteria_mode, letter, num_samples, embeddings, all_rom_token_indices, token_strings)
         
