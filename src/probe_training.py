@@ -31,7 +31,6 @@ except ImportError:
 
 
 
-
 def create_and_log_artifact(tensor, name, artifact_type, description):
     # Save the tensor to a file
     filename = f"{name}.pt"
@@ -53,8 +52,7 @@ def all_probe_training_runner(
         embeddings, 
         all_rom_token_indices, 
         token_strings,
-        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        patience = 10, # Define a 'patience' value for early stopping:    
+        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ",   
         num_samples = 10000, # Define number of samples in training+validation dataset:
         num_epochs = 100, # Define number of training epochs:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
@@ -83,12 +81,11 @@ def all_probe_training_runner(
                 all_rom_token_indices,
                 num_samples,
                 num_epochs,
-                patience,
                 device,
                 probe_type,
                 criteria_mode,
                 use_wandb,
-                wandb_group_name = group_name if use_wandb else None,
+                wandb_group_name = group_name if use_wandb else None
                 )
 
         if use_wandb:
@@ -105,7 +102,6 @@ def train_letter_probe_runner(
         all_rom_token_indices,
         num_samples,
         num_epochs,
-        patience,
         device,
         probe_type,
         criteria_mode,
@@ -118,13 +114,12 @@ def train_letter_probe_runner(
                 config = {
                     "letter": letter,            
                     "criteria_mode": criteria_mode,
-                    "model_name": "gpt2",
+                    "model_name": "gpt-j",
                     "probe_type": probe_type,
                     "train_test_split": 0.2,
                     "case_sensitive": False,
                     "batch_size": 32,
                     "learning_rate": 0.001,
-                    "patience": patience,
                     "num_samples": num_samples,
                     "num_epochs": num_epochs,
                     "device": device,
@@ -176,105 +171,88 @@ def train_letter_probe_runner(
         no_improve_count = 0
         
         print('\n_________________________________________________\n')
-        
         for epoch in range(num_epochs):
                 model.train()  # Set the model to training mode
                 total_loss = 0.0
-                
+
                 for batch_embeddings, batch_labels in train_loader:
                         # Move your data to the chosen device during the training loop and ensure they're float32
                         # By explicitly converting to float32, you ensure that the data being fed into your model has the expected data type, and this should resolve the error you en
                         batch_embeddings = batch_embeddings.to(device).float()
-                        batch_labels = batch_labels.to(device).float()
-                        
+                        batch_labels = batch_labels.to(device).float()  
+
                         optimizer.zero_grad()
                         outputs = model(batch_embeddings).squeeze()
                         loss = criterion(outputs, batch_labels)
                         loss.backward()
-                        optimizer.step()
-                        
+                        optimizer.step()  
+
                         total_loss += loss.item()
                         
                         if use_wandb:
                                 wandb.log({"loss": loss.item()})
                 
                 print(f"{letter}: epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
-                
+
                 # STORE THE PROBE WEIGHTS (or "direction" in embedding space associated with this probe)
                 # The ord(letter) - ord('A') part is just an index from 0 to 25 corresponding to A to Z.
                 probe_weights_tensor = model.fc.weight.data.clone().detach()
-                
+
                 # EVALUATION (VALIDATION) PHASE
-                
+
                 # Set the model to evaluation mode
                 model.eval()
-                
+
                 # Create DataLoader for validation data
                 val_dataset = LetterDataset(X_val, y_val)
                 val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
-                
-                
+
                 # Keep track of correct predictions and total predictions
                 correct_preds = 0
                 total_preds = 0
                 validation_loss = 0.0
-                
+
                 with torch.no_grad():  # Ensure no gradients are computed during validation
                         all_labels = []  # Store all true labels
                         all_predictions = []  # Store all model predictions
-                
+
                         for batch_embeddings, batch_labels in val_loader:
                                 batch_embeddings = batch_embeddings.to(device).float()  # Ensure embeddings are on the correct device and dtype
                                 batch_labels = batch_labels.to(device).float()  # Ensure labels are on the correct device and dtype
-                                
+
                                 outputs = model(batch_embeddings).squeeze()
-                                
+
                                 # Calculate loss on validation data
                                 loss = criterion(outputs, batch_labels)
                                 validation_loss += loss.item()  # Update validation loss
-                                
+
                                 # Convert outputs to probabilities
                                 probs = torch.sigmoid(outputs)
                                 predictions = (probs > 0.5).float()
-                                
+
                                 # Update correct and total predictions
                                 correct_preds += (predictions == batch_labels).sum().item()
                                 total_preds += batch_labels.size(0)
-                        
+
                                 # Append batch labels and predictions to all_labels and all_predictions
                                 all_labels.append(batch_labels.cpu().numpy())
                                 all_predictions.append(predictions.cpu().numpy())
-                
-                
+
                         # Flatten all_labels and all_predictions lists and convert to numpy arrays
                         all_labels = np.concatenate(all_labels)
                         all_predictions = np.concatenate(all_predictions)
-                        
+
                         # Compute F1 Score
                         f1 = f1_score(all_labels, all_predictions)
-                        
+
                         validation_loss /= len(val_loader)  # Get the average validation loss
-                        
-                        # Early stopping and model checkpointing
-                        if validation_loss < best_val_loss:
-                                best_val_loss = validation_loss
-                                best_train_loss = total_loss / len(train_loader)  # Store best training loss
-                                #torch.save(model.state_dict(), f"model_{letter}.pt")
-                                no_improve_count = 0  # Reset counter
-                        else:
-                                no_improve_count += 1
-        
-                        #line-renumbering experiment
-                        if no_improve_count >= patience:        
-                                break
-                        
-                        
+
                         # Calculate accuracy and average loss
                         accuracy = correct_preds / total_preds
                         print(f"Validation Accuracy: {accuracy * 100:.2f}%")
                         print(f"Validation Loss: {validation_loss:.4f}")
-                        print(f"F1 Score: {f1:.4f}")
-                        
+                        print(f"F1 Score: {f1:.4f}\n")
+
                         if use_wandb:
                                 wandb.log({"validation_loss": validation_loss})
                                 wandb.log({"validation_accuracy": accuracy})
@@ -290,7 +268,7 @@ def train_letter_probe_runner(
                         f"Letter presence probe weight tensor for {letter}"
                     )
     
-                return probe_weights_tensor
+        return probe_weights_tensor
                 
                 
                 
