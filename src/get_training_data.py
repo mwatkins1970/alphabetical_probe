@@ -31,15 +31,12 @@ def get_training_data(
             positive_indices = [index for index in all_rom_token_gt2_indices if token_strings[index].lstrip().lower().startswith(target.lower())]
 
     elif bool(re.match(r'^pos[0-9]$', criteria_mode)):   # required pattern is target string (must be single character) is in position N whre criteria_mode == 'posN'
-        print("\n\n\nYUP!\n\n\n")
         if not (target.isalpha() and len(target) == 1):
-            print("FNORD")
             return None
         else:		
             positive_indices = []
             for index in all_rom_token_gt2_indices:
                 token_string = token_strings[index].lstrip().lower()
-                print(token_string, target, criteria_mode[-1])
                 if len(token_string) > int(criteria_mode[-1]) and token_string[int(criteria_mode[-1])] == target.lower():
                     positive_indices.append(index)
 
