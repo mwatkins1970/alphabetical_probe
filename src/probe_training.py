@@ -135,6 +135,7 @@ def train_letter_probe_runner(
         probe_weights_tensor = torch.zeros(embeddings_dim).to(device)
         
         # construct tensors of embeddings and labels for training and validation
+        print("\n\n\nSHOULD BE ACCESSING get_training_data NOW\n\n\n")
         all_embeddings, all_labels = get_training_data(
         criteria_mode, letter, num_samples, embeddings, all_rom_token_indices, token_strings)
         
@@ -260,12 +261,12 @@ def train_letter_probe_runner(
 
                 # Before returning the tensor, log it as an artifact if wandb logging is used
                 if use_wandb:
-                    artifact_name = f"probe_weight_for_{letter}"
+                    artifact_name = f"probe_weights_for_{letter.upper()}_criterion={criteria_mode}"
                     create_and_log_artifact(
                         probe_weights_tensor,
                         artifact_name,
                         "model_tensors",
-                        f"Letter presence probe weight tensor for {letter}"
+                        f"Letter presence probe weight tensor for {letter.upper()} with criterion={criteria_mode}"
                     )
     
         return probe_weights_tensor
