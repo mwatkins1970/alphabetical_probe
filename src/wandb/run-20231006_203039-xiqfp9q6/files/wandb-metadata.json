@@ -1,0 +1,88 @@
+{
+    "os": "Linux-5.15.120+-x86_64-with-glibc2.35",
+    "python": "3.10.12",
+    "heartbeatAt": "2023-10-06T20:31:33.894402",
+    "startedAt": "2023-10-06T20:30:39.894226",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "matthew.ipynb",
+    "codePathLocal": null,
+    "colab": "https://colab.research.google.com/notebook#fileId=https://github.com/mwatkins1970/alphabetical_probe/blob/main/matthew.ipynb",
+    "git": {
+        "remote": "https://mwatkins1970:@github.com/mwatkins1970/alphabetical_probe.git",
+        "commit": "0d334a4ca46bf3af916f17065547c2193077aa6c"
+    },
+    "email": "drsyntax@hotmail.com",
+    "root": "/content/Drive/MyDrive/SpellingMiracleCollab/ColabRepoCloning/alphabetical_probe",
+    "host": "ac5ef8fdda76",
+    "username": "root",
+    "executable": "/usr/bin/python3",
+    "cpu_count": 4,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 2299.998,
+        "min": 0.0,
+        "max": 0.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2299.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2299.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2299.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2299.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2299.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2299.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2299.998,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2299.998,
+            "min": 0.0,
+            "max": 0.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 166.77415084838867,
+            "used": 28.345989227294922
+        }
+    },
+    "gpu": "Tesla T4",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "Tesla T4",
+            "memory_total": 16106127360
+        }
+    ],
+    "memory": {
+        "total": 50.99726867675781
+    }
+}

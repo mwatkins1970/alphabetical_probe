@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 import wandb 
 import numpy as np
-import io
+import tempfile
+import os
 
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
@@ -32,22 +33,20 @@ except ImportError:
 
 
 def create_and_log_artifact(tensor, name, artifact_type, description):
-    # Write tensor to a bytes buffer
-    buffer = io.BytesIO()
-    torch.save(tensor, buffer)
-    
-    # Create a new artifact
-    artifact = wandb.Artifact(
-        name=name,
-        type=artifact_type,
-        description=description,
-    )
-    
-    # Add the buffer directly to the artifact
-    artifact.add_file(buffer, name=f"{name}.pt")
-    
-    # Log the artifact
-    wandb.log_artifact(artifact)
+    # Use a temporary file to save the tensor
+    with tempfile.NamedTemporaryFile(delete=True, suffix='.pt') as tmp:
+        torch.save(tensor, tmp.name)
+        
+        # Create a new artifact
+        artifact = wandb.Artifact(
+            name=name,
+            type=artifact_type,
+            description=description,
+        )
+        artifact.add_file(tmp.name)
+        
+        # Log the artifact
+        wandb.log_artifact(artifact)
 
 
 def get_mlp_weights(model):
@@ -167,9 +166,9 @@ def train_letter_probe_runner(
         
         # Initialize model and optimizer based on probe_type
         if probe_type == 'linear':
-                model = LinearProbe(embeddings_dim).to(device)
+            model = LinearProbe(embeddings_dim).to(device)
         elif probe_type == 'mlp':
-                model = MLPProbe(embeddings_dim, hidden_dim=128, num_hidden_layers=2).to(device)
+            model = MLPProbe(embeddings_dim, hidden_dim=128, num_hidden_layers=2).to(device)
         
         optimizer = optim.Adam(model.parameters(), lr = 0.001)
         criterion = nn.BCEWithLogitsLoss()         # Binary cross-entropy loss with logits (because we haven't used an activation in our model)
@@ -191,34 +190,42 @@ def train_letter_probe_runner(
         
         print('\n_________________________________________________\n')
         for epoch in range(num_epochs):
-                model.train()  # Set the model to training mode
-                total_loss = 0.0
+            model.train()  # Set the model to training mode
+            total_loss = 0.0
 
-                for batch_embeddings, batch_labels in train_loader:
-                        # Move your data to the chosen device during the training loop and ensure they're float32
-                        # By explicitly converting to float32, you ensure that the data being fed into your model has the expected data type, and this should resolve the error you en
-                        batch_embeddings = batch_embeddings.to(device).float()
-                        batch_labels = batch_labels.to(device).float()  
+            for batch_embeddings, batch_labels in train_loader:
+                # Move your data to the chosen device during the training loop and ensure they're float32
+                # By explicitly converting to float32, you ensure that the data being fed into your model has the expected data type, and this should resolve the error you en
+                  batch_embeddings = batch_embeddings.to(device).float()
+                  batch_labels = batch_labels.to(device).float()  
 
-                        optimizer.zero_grad()
-                        outputs = model(batch_embeddings).squeeze()
-                        loss = criterion(outputs, batch_labels)
-                        loss.backward()
-                        optimizer.step()  
+                  optimizer.zero_grad()
+                  outputs = model(batch_embeddings).squeeze()
+                  loss = criterion(outputs, batch_labels)
+                  loss.backward()
+                  optimizer.step()  
 
-                        total_loss += loss.item()
+                  total_loss += loss.item()
                         
-                        if use_wandb:
-                                wandb.log({"loss": loss.item()})
-                
-                print(f"{letter}: epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+                  if use_wandb:
 
-                # STORE THE PROBE WEIGHTS (or "direction" in embedding space associated with this probe)
-                # The ord(letter) - ord('A') part is just an index from 0 to 25 corresponding to A to Z.
+                      wandb.log({"loss": loss.item()})
+                
+            print(f"{letter}: epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+
+            if use_wandb:
                 if probe_type == 'linear':
-                    probe_weights_tensor = model.fc.weight.data.clone().detach()
-                elif probe_type == 'mlp':
-                    probe_weights = get_mlp_weights(model)
+                    artifact_name = f"probe_weights_for_{letter.upper()}_criterion_{criteria_mode}"
+                    print("Now logging probe weight tensor wandb artifact...")
+                    create_and_log_artifact(
+                        probe_weights_tensor,
+                        artifact_name,
+                        "model_tensors",
+                        f"Letter presence probe weight tensor for {letter.upper()} with criterion_{criteria_mode}"
+                    )
+                elif probe_type == 'mlp':  
+                    pass  # Don't log the weights for mlp
+                
 
                 # EVALUATION (VALIDATION) PHASE
 
@@ -282,16 +289,10 @@ def train_letter_probe_runner(
                                     "model_tensors",
                                     f"Letter presence probe weight tensor for {letter.upper()} with criterion_{criteria_mode}"
                                 )
-                            elif probe_type == 'mlp':    
-                                for name, tensor in probe_weights.items():
-                                    artifact_name = f"{name}_for_{letter.upper()}_criterion_{criteria_mode}"
-                                    print(f"Now logging {name} tensor wandb artifact...")
-                                    create_and_log_artifact(
-                                        tensor,
-                                        artifact_name,
-                                        "model_tensors",
-                                        f"{name} tensor for {letter.upper()} with criterion_{criteria_mode}"
-                                    )
+                        elif probe_type == 'mlp':  
+                            # Skip logging weights for mlp, since you're not storing or using them
+                            pass
+
 
                         # Calculate accuracy and average loss
                         accuracy = correct_preds / total_preds
@@ -307,31 +308,7 @@ def train_letter_probe_runner(
         if probe_type == 'linear':
             return probe_weights_tensor
         elif probe_type == 'mlp':
-            return probe_weights
-                
-                
-        
-        #   # Store results in the dictionary for current letter
-        #   results[letter] = {
-        #       'best_train_loss': best_train_loss,
-        #       'validation_loss': validation_loss,
-        #       'validation_accuracy': accuracy
-        #   }
-        
-        # # OUTPUT SUMMARY
-        
-        # print("\nSummary:")
-        # print("Letter | Best Train Loss | Validation Loss | Validation Accuracy")
-        # print("-" * 75)
-        # for letter, metrics in results.items():
-        #     print(f"{letter}      | {metrics['best_train_loss']:.4f}           | {metrics['validation_loss']:.4f}        | {metrics['validation_accuracy']:.4f}")
-        
-        # # Averages:
-        # avg_train_loss = sum([metrics['best_train_loss'] for metrics in results.values()]) / 26
-        # avg_val_loss = sum([metrics['validation_loss'] for metrics in results.values()]) / 26
-        # avg_val_accuracy = sum([metrics['validation_accuracy'] for metrics in results.values()]) / 26
-        
-        # print("-" * 75)
-        # print(f"AVERAGE: | {avg_train_loss:.4f}           | {avg_val_loss:.4f}        | {100 * avg_val_accuracy:.2f}%")
-        
-        # print(probe_weights_tensor)
+            return torch.zeros(4096)  # This is just a placeholder, as it seems nothing really needs to be returned
+                                      # We're not interested in the weights. But the code above is expecting a tensor 
+                                      # to be returned and logged as a value for the current letter-key, so...
+            

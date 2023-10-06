@@ -1,0 +1,1 @@
+{"loss": 3.725290076417309e-09, "_timestamp": 1696626382.7126153, "_runtime": 83.09781622886658, "_step": 25299, "validation_loss": 0.4206680667139153, "validation_accuracy": 0.947, "f1_score": 0.9023941068139963, "_wandb": {"runtime": 77}}
