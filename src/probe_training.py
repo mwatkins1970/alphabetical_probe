@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import wandb 
 import numpy as np
+import io
 
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
@@ -30,20 +31,21 @@ except ImportError:
     from get_training_data import get_training_data
 
 
-
 def create_and_log_artifact(tensor, name, artifact_type, description):
-    # Save the tensor to a file
-    filename = f"{name}.pt"
-    torch.save(tensor, filename)
-
+    # Write tensor to a bytes buffer
+    buffer = io.BytesIO()
+    torch.save(tensor, buffer)
+    
     # Create a new artifact
     artifact = wandb.Artifact(
         name=name,
         type=artifact_type,
         description=description,
     )
-    artifact.add_file(filename)
-
+    
+    # Add the buffer directly to the artifact
+    artifact.add_file(buffer, name=f"{name}.pt")
+    
     # Log the artifact
     wandb.log_artifact(artifact)
 
