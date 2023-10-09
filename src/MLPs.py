@@ -1,9 +1,9 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-class ModifiedMLPProbe(nn.Module):
+class MLPProbe(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_hidden_layers):
-        super(ModifiedMLPProbe, self).__init__()
+        super(MLPProbe, self).__init__()
         assert num_hidden_layers >= 2, "Number of hidden layers should be at least 2 for this architecture"
         
         self.input_dim = input_dim
