@@ -34,12 +34,14 @@ def closest_tokens(emb, top_k, token_strings, embeddings):
     
     # Compute cosine similarity and subtract from 1 to get distance
     # Higher similarity means lower distance
-    distances = 1 - F.cosine_similarity(embeddings[:50257], emb.unsqueeze(0).expand_as(embeddings[:50257]))
-    
+    #distances = 1 - F.cosine_similarity(embeddings[:50257], emb.unsqueeze(0).expand_as(embeddings[:50257]))
+    distances = 1 - F.cosine_similarity(embeddings[:50257], emb)
+
+
     # Get the indices of the top k closest tokens
     closest_indices = torch.argsort(distances)[:top_k]
 
-    print(closest_indices)
+    #print(closest_indices)
     
     # Return the corresponding token strings for these indices
     closest_tokens = [token_strings[i] for i in closest_indices]
