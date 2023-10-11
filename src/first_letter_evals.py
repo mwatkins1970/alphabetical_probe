@@ -1,18 +1,22 @@
-#THIS RECORDS RESULTS FOR GPT-Js ABILITY TO INFER THE FIRST LETTER OF THE VAST MAJORITY OF ALL-ROMAN TOKENS
-#USING BOTH PROMPTING AND PROBE DISTANCES
+# This function records results for probe- and prompt-based attempts to predict the first letter of all-roman tokens
+# 1-shot seems to work best
+# returns results as both a python dictionary and as a pandas dataframe
+
+import torch
+import wandb
+import pandas as pd
+from find_closest_probe import find_closest_probe
+device = "cpu"
 
 def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, range_start, range_end, num_shots):
-
-    import torch
-    import wandb
-    from find_closest_probe import find_closest_probe
-    device = "cpu"
 
     use_wandb = False
 
     if use_wandb:
           wandb.init(project="SpellingMiracleCollab", name="first letter prompt vs probe evals")
 
+    # Currently loading in pre-calculated shape(26,4096) tensor of all 26 first-letter probes
+    # Replace with commented out line if you want to start by trained these first.
     # probe_weights_tensor = all_probe_training_runner(embeddings, all_rom_token_indices, token_strings, probe_type = 'linear', use_wandb = True, criteria_mode = "pos1")
     probe_weights_tensor = torch.load('/content/Drive/My Drive/SpellingMiracleCollab/pos1_probe_weights_tensor.pt')
 
@@ -90,4 +94,10 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
     if use_wandb:
         wandb.log({"results": results_dict})
 
-    return results_dict
+    df = pd.DataFrame(results_dict["predictions"])
+    df["number of shots"] = results_dict["number of shots"]
+    df["prompt template"] = results_dict["prompt template"]
+    df["intervention type"] = results_dict["intervention type"]
+    df["intervention scale"] = results_dict["intervention scale"]
+
+    return df, results_dict
