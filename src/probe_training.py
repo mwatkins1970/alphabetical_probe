@@ -1,5 +1,5 @@
-# THIS WAS WRITTEN SO THAT IT CAN TRAIN BOTH LINEAR PROBES AND MLPS
-# NOT SURE THE MLPs ARE RELEVANT ANYMORE
+# This was created to train either linear probes or MLPs, it's not clear the latter are needed now
+# get_mlp_weights() is currently not used
 
 import torch 
 import torch.nn as nn 
@@ -35,8 +35,7 @@ except ImportError:
     from get_training_data import get_training_data
 
 
-
-#RANDOM SEED STUFF HERE (PROBABLY MISGUIDED!)
+# random seeding
 rnd_seed = 42
 
 torch.manual_seed(rnd_seed)
@@ -49,7 +48,6 @@ np.random.seed(rnd_seed)
 
 hidden_dim=4096
 num_hidden_layers=2
-
 
 def create_and_log_artifact(tensor, name, artifact_type, description):
     # Use a temporary file to save the tensor
