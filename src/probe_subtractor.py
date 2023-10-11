@@ -1,6 +1,8 @@
 # THIS SUBTRACTS OUT THE PART OF AN EMBEDDING VECTOR PARALLEL TO A PROBE, PRODUCING SOMETHING WHICH IS 
 # THEREFORE ORTHOGONAL (0 cosine similarity) TO IT
 
+import torch
+
 def probe_subtractor(emb, letter):
     if len(letter) == 1 and letter.lower() in "abcdefghijklmnopqrstuvwxyz":
         # probe_weights_tensor = all_probe_training_runner(embeddings, all_rom_token_indices, token_strings, probe_type = 'linear', use_wandb = True, criteria_mode = "pos1")
