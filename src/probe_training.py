@@ -1,3 +1,6 @@
+# THIS WAS WRITTEN SO THAT IT CAN TRAIN BOTH LINEAR PROBES AND MLPS
+# NOT SURE THE MLPs ARE RELEVANT ANYMORE
+
 import torch 
 import torch.nn as nn 
 import torch.optim as optim
@@ -44,7 +47,7 @@ if torch.cuda.is_available():
 
 np.random.seed(rnd_seed)
 
-hidden_dim=128
+hidden_dim=4096
 num_hidden_layers=2
 
 
@@ -92,7 +95,8 @@ def all_probe_training_runner(
         token_strings,
         alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ",   
         num_samples = 10000, # Define number of samples in training+validation dataset:
-        num_epochs = 100, # Define number of training epochs:
+        num_epochs = 5, # Define number of training epochs:
+        batch_size = 128,
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         use_wandb = False,
         probe_type = 'linear',
@@ -119,6 +123,7 @@ def all_probe_training_runner(
                 all_rom_token_indices,
                 num_samples,
                 num_epochs,
+                batch_size,
                 device,
                 probe_type,
                 criteria_mode,
@@ -127,11 +132,10 @@ def all_probe_training_runner(
                 )
 
         if use_wandb:
-            create_and_log_artifact(
-                all_probe_weights, "all_probe_weights", "model_tensors", "All case-insensitive letter presence probe weights tensor")
-
-        return all_probe_weights
-
+            # Start a new W&B run for logging the aggregate artifact
+            wandb.init(project="letter_presence_probes", name="aggregate_artifact_logging")
+            create_and_log_artifact(all_probe_weights, "all_probe_weights", "model_tensors", "All case-insensitive letter presence probe weights tensor")
+            wandb.finish()  # End the run
 
 def train_letter_probe_runner(
         letter,      
@@ -140,6 +144,7 @@ def train_letter_probe_runner(
         all_rom_token_indices,
         num_samples,
         num_epochs,
+        batch_size,
         device,
         probe_type,
         criteria_mode,
@@ -157,7 +162,7 @@ def train_letter_probe_runner(
                     "train_test_split": 0.2,
                     "seed": rnd_seed,
                     "case_sensitive": False,
-                    "batch_size": 32,
+                    "batch_size": 128,
                     "learning_rate": 0.001,
                     "num_samples": num_samples,
                     "num_epochs": num_epochs,
@@ -194,7 +199,7 @@ def train_letter_probe_runner(
         
         # create DataLoader for your training dataset
         train_dataset = LetterDataset(X_train, y_train)
-        train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         
         #X_train, y_train (embeddings and labels for training) were created above using standard methods applied to all_embeddings and all_labels tensors            
         #X_val, y_val (embeddings and labels for validation) were likewise created above using standard methods applied to all_embeddings and all_labels tensors
@@ -289,9 +294,9 @@ def train_letter_probe_runner(
                                 f"Letter presence probe weight tensor for {letter.upper()} with criterion_{criteria_mode}"
                             )
 
-                      elif probe_type == 'mlp':  
-                          # Skip logging weights for mlp, since you're not storing or using them
-                          pass
+                    elif probe_type == 'mlp':
+                        # Skip logging weights for mlp, since you're not storing or using them
+                        pass
 
 
                     # Calculate accuracy and average loss
