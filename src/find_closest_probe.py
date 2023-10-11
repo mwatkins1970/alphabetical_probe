@@ -1,5 +1,7 @@
-def find_closest_probe(embedding_vector, probes_tensor):    # HERE probes_tensor should be shape-(26,4096), with rows corresponding to alphabet
+# probes_tensor should be shape-(26,4096), with rows corresponding to the alphabet
 
+def find_closest_probe(embedding_vector, probes_tensor):    
+  
     import torch
     import torch.nn.functional as F
 
@@ -37,7 +39,3 @@ def find_closest_probe(embedding_vector, probes_tensor):    # HERE probes_tensor
     closest_probe = chr(original_index.item() + ord('a'))
 
     return closest_probe, all_cosine_sim.cpu().tolist()
-
-
-
-
