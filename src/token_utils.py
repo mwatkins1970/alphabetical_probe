@@ -49,6 +49,31 @@ def closest_tokens(emb, top_k, token_strings, embeddings):
     return closest_tokens
 
 
+def closest_tokens_recentred(emb, top_k, token_strings, embeddings):
+
+    # Make sure all tensors are on the same device as `emb`
+    embeddings = embeddings.to(emb.device)
+
+    mean_emb = torch.mean(embeddings[:50257], dim=0)
+
+    adjusted_emb = emb - mean_emb 
+    adjusted_embeddings = embeddings[:50257] - mean_emb.unsqueeze(0)
+
+
+    # Compute cosine similarity and subtract from 1 to get distance
+
+    distances = 1 - F.cosine_similarity(adjusted_embeddings, adjusted_emb)
+
+
+    # Get the indices of the top k closest tokens
+    closest_indices = torch.argsort(distances)[:top_k]
+
+    #print(closest_indices)
+    
+    # Return the corresponding token strings for these indices
+    closest_tokens = [token_strings[i] for i in closest_indices]
+    
+    return closest_tokens
 
 
 # Given a shape (26,4096) tensor (typically staring-letter probes), this
