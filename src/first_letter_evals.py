@@ -8,7 +8,7 @@ import pandas as pd
 from find_closest_probe import find_closest_probe
 device = "cpu"
 
-def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, range_start, range_end, num_shots):
+def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, index_list, num_shots):
 
     use_wandb = False
 
@@ -41,17 +41,19 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
     results_dict["predictions"] = []
 
 
-    for idx in all_rom_token_gt2_indices[range_start:range_end]:
+    for i in index_list:
 
-        token = token_strings[idx]
+        token_index = token_strings.index(token_strings[all_rom_token_gt2_indices[i]])
 
-        emb = embeddings[idx]
+        token = token_strings[token_index]
+
+        emb = embeddings[token_index]
 
         closest_probe, probe_distance_list = find_closest_probe(emb, probe_weights_tensor)
 
         prompt = preprompts[num_shots] + token + '''" begins with the letter "'''
 
-        print(f"PROMPT:\n{prompt}")
+        print(f"INDEX: {token_index};  TOKEN: '{token}'\nPROMPT:\n{prompt}")
 
         ix = tokenizer.encode(prompt)
 
@@ -75,7 +77,7 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
           probe_wrong +=1
         
         single_token_results_dict = {}
-        single_token_results_dict["index"] = idx
+        single_token_results_dict["index"] = token_index
         single_token_results_dict["token"] = token
         single_token_results_dict["first letter"] = token.lstrip()[0]
         single_token_results_dict["prompt prediction"] = output

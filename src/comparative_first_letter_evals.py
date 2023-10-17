@@ -3,8 +3,6 @@ import wandb
 import pandas as pd
 from find_closest_probe import find_closest_probe
 from probe_subtractor import probe_subtractor
-from probe_subtractor import probe_subtractor_alt
-
 from transformers import GPTJForCausalLM
 
 device = "cpu"
@@ -42,55 +40,47 @@ def comparative_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token
     # iterate through our list of token indices (each token will have its embedding mutated before being inserted into the prompt template and forward-passed)
 
     for idx in index_list:   
-
         token = token_strings[idx]
-
         emb = embeddings[idx]
 
         prompt = preprompts[num_shots] + token + '''" begins with the letter "'''
-
         print(f"PROMPT:\n{prompt}")
 
-        ix = tokenizer.encode(prompt)
+        encoded_prompt = tokenizer.encode(prompt, return_tensors="pt")
+        prompt_length = encoded_prompt.size(1)
 
-        #print(f"\nTOKEN INDEX LIST: {ix}")
+        # Prepare the embeddings
+        with torch.no_grad():
+            prompt_emb_tensor = GPTmodel.transformer.wte(encoded_prompt)[0]  # Shape: [sequence_length, embedding_size]
 
-        ix_tensor = torch.tensor(ix).unsqueeze(0)
-        prompt_emb_tensor = embeddings[ix_tensor]
+        m = len(tokenizer.encode(preprompts[num_shots]))  # length of the prompt up to the token
 
-        # Calculate the index k
-        k = len(tokenizer.encode(preprompts[num_shots]))  # length of the prompt up to the token
-        #print(f"Modifying embedding at index: {k}")
+        modified_embedding = probe_subtractor(coeff, prompt_emb_tensor[m], token.lstrip().lower()[0])
 
-        # Modify the embedding at index k using probe_subtractor
-        # the first one projects onto the probe's orthogonal complement
-        # the second one projects ACROSS it
-        #modified_embedding = probe_subtractor(prompt_emb_tensor[0, k], token.lstrip().lower()[0])
-        modified_embedding = probe_subtractor_alt(coeff, prompt_emb_tensor[0, k], token.lstrip().lower()[0])
+        prompt_emb_tensor[m] = modified_embedding
 
-        #print('\n')
-        #print(f"ORIGINAL EMBEDDING FOR TOKEN: {prompt_emb_tensor[0, k]}")
-        #print(f"DIFFERENCE BETWEEN THESE: {prompt_emb_tensor[0, k] - modified_embedding}")
-        #print(f"MODIFIED EMBEDDING FOR TOKEN: {modified_embedding}")
+        # Get the logits of the next possible tokens after the prompt
+        with torch.no_grad():  # It's important to use no_grad() here to prevent memory leakage
+            outputs = GPTmodel(inputs_embeds=prompt_emb_tensor.unsqueeze(0))
+            next_token_logits = outputs.logits[0, -1, :]  # Get the logits for the next token
 
-        # Replace the embedding at index k in prompt_emb_tensor with the modified embedding
-        prompt_emb_tensor[0, k] = modified_embedding
+        # Get the token id with the highest logit
+        top_token_id = next_token_logits.argmax()
 
-        #print(f"\nNEW PROMPT EMBEDDINGS TENSOR: {prompt_emb_tensor}")
+ 
+        # Get the highest logit value
+        max_logit_value = next_token_logits.max()  # This retrieves the maximum logit value
 
-        model_out = GPTmodel(inputs_embeds=prompt_emb_tensor, return_dict=True)
+        # Get the token id with the highest logit
+        output = token_strings[top_token_id]  # You may need to adjust this if your token_strings isn't a direct id-to-string mapping
 
-        logits = model_out.logits
-        scaled_logits = logits / temperature
-        probabilities = torch.nn.functional.softmax(scaled_logits, dim=-1)
+        # Generate output sequence
+        generated_output = GPTmodel.generate(inputs_embeds=prompt_emb_tensor.unsqueeze(0), max_length=prompt_length + 20, temperature=temperature, pad_token_id=tokenizer.eos_token_id)  # or any appropriate max_length
 
-        # Sample a token from the adjusted distribution
-        probabilities_last_token = probabilities[0, -1, :]
-        sampled_token_id = torch.multinomial(probabilities_last_token, 1)
+        # Decode the output sequence (including the original prompt)
+        full_output_text = tokenizer.decode(generated_output[0], skip_special_tokens=True)
 
-        sampled_token_id = sampled_token_id.item()
-
-        output = token_strings[sampled_token_id]
+        print(f"FULL OUTPUT: {full_output_text}\n")
 
         if output.lower() == token.lstrip().lower()[0]:
             pred_correct += 1
@@ -103,6 +93,7 @@ def comparative_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token
         single_token_results_dict["token"] = token
         single_token_results_dict["first letter"] = token.lstrip()[0]
         single_token_results_dict["prompt prediction"] = output
+        single_token_results_dict["prediction logit"] = max_logit_value.item()
 
         results_dict["predictions"].append(single_token_results_dict)
 

@@ -33,7 +33,7 @@ class CustomEmbedding(torch.nn.Module):
         return original_embeddings
 
 
-def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, token_index, num_shots, coeff):
+def nu_comparative_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, token_index, num_shots, coeff):
 
     use_wandb = False
 

@@ -93,8 +93,8 @@ def all_probe_training_runner(
         token_strings,
         alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ",   
         num_samples = 10000, # Define number of samples in training+validation dataset:
-        num_epochs = 5, # Define number of training epochs:
-        batch_size = 128,
+        num_epochs = 100, # Define number of training epochs:
+        batch_size = 32,
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         use_wandb = False,
         probe_type = 'linear',
@@ -281,7 +281,10 @@ def train_letter_probe_runner(
                     validation_loss /= len(val_loader)  # Get the average validation loss
 
                     if probe_type == 'linear':
-                        probe_weights_tensor = model.weight.data.clone().detach()  
+                        # Assuming model.linear is your linear layer in the LinearProbe model. 
+                        # Adjust this depending on how you've structured your LinearProbe class.
+                        probe_weights_tensor = model.fc.weight.data.clone().detach()  
+   
                         if use_wandb:
                             artifact_name = f"probe_weights_for_{letter.upper()}_criterion_{criteria_mode}"
                             print("Now logging probe weight tensor wandb artifact...")
