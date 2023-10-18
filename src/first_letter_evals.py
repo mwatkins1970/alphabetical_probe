@@ -21,10 +21,10 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
     probe_weights_tensor = torch.load('/content/Drive/My Drive/SpellingMiracleCollab/pos1_probe_weights_tensor.pt')
 
     results_dict = {}
-    prompt_correct = 0
-    prompt_wrong = 0
-    probe_correct = 0
-    probe_wrong = 0
+    prompt_correct_count = 0
+    prompt_wrong_count = 0
+    probe_correct_count = 0
+    probe_wrong_count = 0
 
     preprompts = []
 
@@ -36,8 +36,6 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
     
     results_dict["number of shots"] = num_shots
     results_dict["prompt template"] = preprompts[num_shots] + '''<token>" begins with the letter "'''
-    results_dict["intervention type"] = None
-    results_dict["intervention scale"] = None
     results_dict["predictions"] = []
 
 
@@ -65,31 +63,37 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
                 pad_token_id=tokenizer.eos_token_id,
         )
 
-        output = tokenizer.decode(model_out[0])[len(prompt):]    
-        if output.lower() == token.lstrip().lower()[0]:
-          prompt_correct += 1
-        else:
-          prompt_wrong +=1
+        output = tokenizer.decode(model_out[0])[len(prompt):]
 
-        if closest_probe.lower() == token.lstrip().lower()[0]:
-          probe_correct += 1
+        probe_correct = (closest_probe.lower() == token.lstrip().lower()[0])
+
+        if probe_correct:
+          probe_correct_count += 1
         else:
-          probe_wrong +=1
+          probe_wrong_count +=1
+
+        prompt_correct = (output.lower() == token.lstrip().lower()[0])
+           
+        if prompt_correct:
+          prompt_correct_count += 1
+        else:
+          prompt_wrong_count +=1
+
         
         single_token_results_dict = {}
         single_token_results_dict["index"] = token_index
         single_token_results_dict["token"] = token
         single_token_results_dict["first letter"] = token.lstrip()[0]
-        single_token_results_dict["prompt prediction"] = output
+        single_token_results_dict["prompt prediction"] = output.upper()
         single_token_results_dict["probe prediction"] =  closest_probe
         single_token_results_dict["probe cos similarities"] =  probe_distance_list
 
         results_dict["predictions"].append(single_token_results_dict)
 
-        print(f"PROMPT PREDICTION: {output}")
-        print(f"PROMPT CORRECT: {prompt_correct}/{prompt_correct + prompt_wrong} ({100*prompt_correct/(prompt_correct + prompt_wrong):.2f}%)")
-        print(f"PROBE PREDICTION: {closest_probe.upper()}")
-        print(f"PROBE CORRECT: {probe_correct}/{probe_correct + probe_wrong} ({100*probe_correct/(probe_correct + probe_wrong):.2f}%)")
+        print(f"PROMPT PREDICTION: {output} ({prompt_correct})")
+        print(f"PROBE PREDICTION: {closest_probe.upper()} ({probe_correct})")
+        print(f"Current prompt-based prediction score: {prompt_correct_count}/{prompt_correct_count + prompt_wrong_count} ({100*prompt_correct_count/(prompt_correct_count + prompt_wrong_count):.2f}%)")
+        print(f"Current probe-based prediction score: {probe_correct_count}/{probe_correct_count + probe_wrong_count} ({100*probe_correct_count/(probe_correct_count + probe_wrong_count):.2f}%)")
 
         print('\n')
 
@@ -99,7 +103,5 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
     df = pd.DataFrame(results_dict["predictions"])
     df["number of shots"] = results_dict["number of shots"]
     df["prompt template"] = results_dict["prompt template"]
-    df["intervention type"] = results_dict["intervention type"]
-    df["intervention scale"] = results_dict["intervention scale"]
 
     return df, results_dict
