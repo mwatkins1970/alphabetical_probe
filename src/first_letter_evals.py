@@ -89,12 +89,13 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
         single_token_results_dict["probe cos similarities"] =  probe_distance_list
 
         results_dict["predictions"].append(single_token_results_dict)
-     
+  
         print(f"\nPROMPT PREDICTION: {output} ({prompt_correct})")
         print(f"PROBE PREDICTION: {closest_probe.upper()} ({probe_correct})")
         print(f"Current prompt-based prediction score: {prompt_correct_count}/{prompt_correct_count + prompt_wrong_count} ({100*prompt_correct_count/(prompt_correct_count + prompt_wrong_count):.2f}%)")
         print(f"Current probe-based prediction score: {probe_correct_count}/{probe_correct_count + probe_wrong_count} ({100*probe_correct_count/(probe_correct_count + probe_wrong_count):.2f}%)")
         print("-"*50)
+
         print('\n')
 
     if use_wandb:
