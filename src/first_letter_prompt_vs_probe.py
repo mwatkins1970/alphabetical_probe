@@ -9,7 +9,7 @@
 import random
 from first_letter_evals import first_letter_evals_runner
 
-def first_letter_prompt_vs_probe(k):
+def first_letter_prompt_vs_probe(GPTmodel, tokenizer, embeddings, all_rom_token_gt2_indices, token_strings, num_shots, k):
 
     num_indices = len(all_rom_token_gt2_indices)    # 44634
 
@@ -34,9 +34,5 @@ def first_letter_prompt_vs_probe(k):
 
         if first_letter == prompt_prediction:
             count += 1
-
-    print(f"That's prompt-based success on {count}/{(len(index_list))} tokens")
-    print(f"'results' DICTIONARY: {results}")
-    print('\n')
 
     return results

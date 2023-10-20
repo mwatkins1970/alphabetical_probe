@@ -32,8 +32,7 @@ class CustomEmbedding(torch.nn.Module):
         
         return original_embeddings
 
-
-def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, token_index, num_shots, coeff):
+def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, token_index, num_shots, coeff, switch_flag):
 
     use_wandb = False
 
@@ -54,8 +53,6 @@ def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_stri
     
     results_dict["number of shots"] = num_shots
     results_dict["prompt template"] = preprompts[num_shots] + '''<token>" begins with the letter "'''
-    results_dict["intervention type"] = 'orthogonal projection'
-    results_dict["intervention scale"] = coeff
     results_dict["predictions"] = []
 
     # iterate through our list of token indices (each token will have its embedding mutated before being inserted into the prompt template and forward-passed)
@@ -63,7 +60,7 @@ def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_stri
     token = token_strings[token_index]
 
     input_prompt = preprompts[num_shots] + token + '''" begins with the letter "'''
-    print(f"PROMPT:\n{input_prompt}")
+    #print(f"PROMPT:\n{input_prompt}")
 
     # Get the original word embedding layer from the GPT model
     original_wte = GPTmodel.get_input_embeddings()
@@ -103,8 +100,21 @@ def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_stri
     # Reset the original embeddings on the model after removing modifications
     GPTmodel.set_input_embeddings(original_wte)
 
+    pred = predicted_token.lstrip().lower() 
+    extra_text = ''
 
-    print(f"OUTPUT: {predicted_token}\n")
+    if len(pred) != 1:
+        extra_text = '   <UNCONVENTIONAL PREDICTION>'
+    elif switch_flag == False:
+      if pred != token.lstrip()[0] and pred not in token.lower():
+        extra_text = f'   <SWITCH LETTER extraneous, SWITCH COEFFICIENT {coeff}>'
+        switch_flag = True
+
+      elif pred != token.lower().lstrip()[0] and pred in token.lower():
+        extra_text = f'   <SWITCH LETTER position {token.lower().lstrip().index(predicted_token.lower().lstrip()) + 1}, SWITCH COEFFICIENT {coeff}>'
+        switch_flag = True
+
+    print(f"OUTPUT: {predicted_token}{extra_text}")
     
     single_token_results_dict = {}
     single_token_results_dict["index"] = token_index
@@ -115,7 +125,6 @@ def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_stri
     
     results_dict["predictions"].append(single_token_results_dict)
 
-    print('\n')
 
     if use_wandb:
         wandb.log({"results": results_dict})
@@ -123,9 +132,6 @@ def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_stri
     df = pd.DataFrame(results_dict["predictions"])
     df["number of shots"] = results_dict["number of shots"]
     df["prompt template"] = results_dict["prompt template"]
-    df["intervention type"] = results_dict["intervention type"]
-    df["intervention scale"] = results_dict["intervention scale"]
 
-    #print(failure_tokens)
-
-    return df, results_dict
+    return df, results_dict, switch_flag
+    
