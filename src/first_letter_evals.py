@@ -85,7 +85,7 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
         single_token_results_dict["token"] = token
         single_token_results_dict["first letter"] = token.lstrip()[0]
         single_token_results_dict["prompt prediction"] = output.upper()
-        single_token_results_dict["probe prediction"] =  closest_probe
+        single_token_results_dict["probe prediction"] =  closest_probe.upper()
         single_token_results_dict["probe cos similarities"] =  probe_distance_list
 
         results_dict["predictions"].append(single_token_results_dict)

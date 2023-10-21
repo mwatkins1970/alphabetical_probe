@@ -41,7 +41,7 @@ def mutation_evals_runner(results, upper_range, step, GPTmodel, tokenizer, embed
                 # make the value for the coeff-key an ordered pair - prediction and logit)
                 prediction_dict['mutation predictions'][coeff] = (results_mutated['predictions'][0]['prompt prediction'], results_mutated['predictions'][0]['prediction logit'])
 
-            print(f"{count}/{len(predictions)}: Results dictionary now enriched to include first-letter predictions for mutations of embedding of token '{prediction_dict['token']}'\n")
+            print(f"{count + 1}/{len(predictions)}: Results dictionary now enriched to include first-letter predictions for mutations of embedding of token '{prediction_dict['token']}'\n")
 
             # Save the progress after processing each token
             with open(save_path, "wb") as f:
