@@ -35,15 +35,7 @@ def token_setup(tokenizer):
 
 
 # THIS MAKES A LIST OF THE 50257 SIGNIFICANT TOKENS, AS WELL AS  SUB-LISTS OF ALL-ROMAN TOKENS
-def load_token_strings_etc(file_path):
-
-		if os.path.exists(file_path):     # if it's already saved, load it
-			with open(file_path, 'rb') as file:
-					token_strings = pickle.load(file)
-		else:                             # otherwise create it and sav it.
-			token_strings = [tokenizer.decode([i]) for i in range(50257)]
-			with open(file_path, 'wb') as file:
-					pickle.dump(token_strings, file)
+def load_token_strings_etc(tokenizer):
 
 		num_tokens = len(token_strings)
 
