@@ -105,16 +105,17 @@ def all_probe_training_runner(
                 # generate unique run name
                 group_name = wandb.util.generate_id() + "_" + alphabet
 
-        # Initialize an empty tensor to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
+        # Initialize an empty dictionary to store the learned weights for all letters (or, equivalently, 26 "directions", one for each linear probe)
         embeddings_dim = embeddings.shape[1]
         all_probe_weights = {letter: None for letter in alphabet}
+        all_probe_biases = {letter: 0 for letter in alphabet}
 
         # Now loop over the alphabet and train/validate a probe for each letter:
 
         for i, letter in enumerate(alphabet):
 
                 # Train the probe for the current letter:
-                all_probe_weights[letter] = train_letter_probe_runner(
+                all_probe_weights[letter], all_probe_biases[letter] = train_letter_probe_runner(
                 letter,   
                 embeddings,
                 token_strings,
@@ -134,6 +135,8 @@ def all_probe_training_runner(
             wandb.init(project="letter_presence_probes", name="aggregate_artifact_logging")
             create_and_log_artifact(all_probe_weights, "all_probe_weights", "model_tensors", "All case-insensitive letter presence probe weights tensor")
             wandb.finish()  # End the run
+
+        return all_probe_weights, all_probe_biases
 
 def train_letter_probe_runner(
         letter,      
@@ -175,7 +178,9 @@ def train_letter_probe_runner(
 
         embeddings_dim = embeddings.shape[1]
         probe_weights_tensor = torch.zeros(embeddings_dim).to(device)
-        
+        # initialise the shape(4096,) tensor to store this probes learned weights in
+        # no need to intialise the bias as that's just going to be a scalar
+    
         # construct tensors of embeddings and labels for training and validation
 
         all_embeddings, all_labels = get_training_data(
@@ -284,15 +289,23 @@ def train_letter_probe_runner(
                         # Assuming model.linear is your linear layer in the LinearProbe model. 
                         # Adjust this depending on how you've structured your LinearProbe class.
                         probe_weights_tensor = model.fc.weight.data.clone().detach()  
-   
+                        probe_bias = model.fc.bias.data.clone().detach()
+
                         if use_wandb:
-                            artifact_name = f"probe_weights_for_{letter.upper()}_criterion_{criteria_mode}"
-                            print("Now logging probe weight tensor wandb artifact...")
+                            artifact_name1 = f"probe_weights_for_{letter.upper()}_criterion_{criteria_mode}"
+                            artifact_name2 = f"probe_bias_for_{letter.upper()}_criterion_{criteria_mode}"
+                            print("Now logging probe weight tensor and bias as wandb artifacts...")
                             create_and_log_artifact(
                                 probe_weights_tensor,
-                                artifact_name,
+                                artifact_name1,
                                 "model_tensors",
                                 f"Letter presence probe weight tensor for {letter.upper()} with criterion_{criteria_mode}"
+                            )
+                            create_and_log_artifact(
+                                probe_bias,
+                                artifact_name2,
+                                "model_tensors",
+                                f"Letter presence probe bias for {letter.upper()} with criterion_{criteria_mode}"
                             )
 
                     elif probe_type == 'mlp':
@@ -318,7 +331,7 @@ def train_letter_probe_runner(
             wandb.finish()
 
         if probe_type == 'linear':
-            return probe_weights_tensor
+            return probe_weights_tensor, probe_bias
         elif probe_type == 'mlp':
             return torch.zeros(4096)  # This is just a placeholder, as it seems nothing really needs to be returned
                                       # We're not interested in the weights. But the code above is expecting a tensor 
