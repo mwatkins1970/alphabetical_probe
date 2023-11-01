@@ -45,4 +45,3 @@ def load_or_download_model_tok_emb(model_name="EleutherAI/gpt-j-6B", device="cpu
     embeddings = load_or_save_embeddings(GPTmodel, model_name, device)
     
     return tokenizer, GPTmodel, embeddings
-
