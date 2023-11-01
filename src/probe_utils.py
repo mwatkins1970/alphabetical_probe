@@ -75,31 +75,30 @@ def find_closest_antiprobe(embedding_vector, probes_tensor):
 
 # Returns a sorted dictionary of distances of the 26 probes encoded in weights_tensor (shape [26,4096]) to the [4096] tensor (embedding) emb
 def probe_distances(emb, weights_tensor):
-    # Determine the device (CUDA if available, otherwise CPU)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    # Move the embedding vector to the chosen device
-    emb = emb.to(device)
+    
+    # Adjusting the shape of 'emb'
+    emb = emb.squeeze().to(device)
 
     distance_dict = {}
     for i, probe in enumerate(weights_tensor):
         if probe.nelement() == 0:
-            continue  # Skip if probe is empty
+            continue
 
-        # Move the probe to the same device as emb
         probe = probe.to(device)
 
-        # Compute the cosine similarity
-        similarity = F.cosine_similarity(emb.unsqueeze(0), probe.unsqueeze(0))
+        # Computing the similarity
+        similarity = F.cosine_similarity(emb.unsqueeze(0), probe.unsqueeze(0)).squeeze()
 
-        # Convert similarity to distance and store it
+        if similarity.nelement() != 1:
+            raise ValueError("Expected a single element tensor for similarity.")
+
         distance = 1 - similarity.item()
         distance_dict[chr(i + ord('A'))] = distance
 
-    # Sort by distance
     sorted_distance_dict = {k: v for k, v in sorted(distance_dict.items(), key=lambda item: item[1])}
-
     return sorted_distance_dict
+
 
 
 # prints dictionary of distances from embedding to all 26 probes, and plots a bar graph
