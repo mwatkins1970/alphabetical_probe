@@ -31,7 +31,7 @@ def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, al
     preprompts.append('''The string "''')
     preprompts.append('''The string " heaven" begins with the letter "H".\nThe string "''')
     preprompts.append('''The string " heaven" begins with the letter "H".\nThe string "same" begins with the letter "S".\nThe string "''')
-    preprompts.append('''The string " heaven" begins with the letter "H".\nThe string "same" begins with the letter "S".\nThe string " altitude" begins with the letter "''')
+    preprompts.append('''The string " heaven" begins with the letter "H".\nThe string "same" begins with the letter "S".\nThe string " altitude" begins with the letter "A".\nThe string "''')
     preprompts.append('''The string " heaven" begins with the letter "H".\nThe string "same" begins with the letter "S".\nThe string " altitude" begins with the letter "A".\nThe string "Trump" begins with the letter "T".\nThe string "''')
     
     results_dict["number of shots"] = num_shots
