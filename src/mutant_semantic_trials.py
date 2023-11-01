@@ -90,6 +90,22 @@ def mutant_semantic_trials_runner(switch_words, token_strings, GPTmodel, tokeniz
 
             print('PROMPTING WITH IDs, NOT EMBEDDINGS AND USING ORIGINAL, UNMUTATED TOKEN (CONTROL):')
             print(f"OUTPUT: {output_text}")
+
+
+
+
+
+
+            from token_utils import closest_tokens
+            closest_100 = closest_tokens(original_embedding.unsqueeze(0), 100, token_strings, embeddings, 2500)
+              #filtering 2500 closest-to-centroid
+            print(closest_100)
+
+
+
+
+
+
             print('\nPROMPTING WITH EMBEDDINGS AND VARIOUS MUTATIONS OF THE TOKEN:')
 
             for k in [0, 1, 2, 5, 10, 20, 30, 40, 60, 80, 100]:
@@ -133,4 +149,9 @@ def mutant_semantic_trials_runner(switch_words, token_strings, GPTmodel, tokeniz
 
                 # Reset the original embeddings on the model after removing modifications
                 GPTmodel.set_input_embeddings(original_wte)
+
+
+                closest_100 = closest_tokens(new_embedding.unsqueeze(0), 100, token_strings, embeddings, 2500)
+                print(f"CLOSEST 100 TOKENS (CTC FILTERED): {closest_100}")
+                print('\n')
 
