@@ -12,27 +12,12 @@ import os
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
+from sklearn.model_selection import KFold
 
-# These have been changed so this module runs in Colab
-try:
-    from src.dataset import LetterDataset
-except ImportError:
-    from dataset import LetterDataset
-
-try:
-    from src.probes import LinearProbe
-except ImportError:
-    from probes import LinearProbe
-
-try:
-    from src.MLPs import MLPProbe
-except ImportError:
-    from MLPs import MLPProbe
-
-try:
-    from src.get_training_data import get_training_data
-except ImportError:
-    from get_training_data import get_training_data
+from dataset import LetterDataset
+from probes import LinearProbe
+from MLPs import MLPProbe
+from get_training_data import get_training_data
 
 
 # random seeding
@@ -48,6 +33,22 @@ np.random.seed(rnd_seed)
 
 hidden_dim=4096
 num_hidden_layers=2
+
+def weights_init(m, method='xavier'):
+    """
+    Initialize model weights.
+    Args:
+    - m (nn.Module): Model or layer to initialize.
+    - method (str): Initialization method ('xavier' or 'he').
+    """
+    if isinstance(m, nn.Linear):
+        if method == 'xavier':
+            nn.init.xavier_uniform_(m.weight)
+        elif method == 'he':
+            nn.init.kaiming_uniform_(m.weight, nonlinearity='relu')
+        # You can initialize bias here if you want, e.g.,
+        nn.init.zeros_(m.bias)
+
 
 def create_and_log_artifact(tensor, name, artifact_type, description):
     # Use a temporary file to save the tensor
@@ -163,7 +164,7 @@ def train_letter_probe_runner(
                     "train_test_split": 0.2,
                     "seed": rnd_seed,
                     "case_sensitive": False,
-                    "batch_size": 128,
+                    "batch_size": batch_size,
                     "learning_rate": 0.001,
                     "num_samples": num_samples,
                     "num_epochs": num_epochs,
@@ -192,10 +193,14 @@ def train_letter_probe_runner(
         # Initialize model and optimizer based on probe_type
         if probe_type == 'linear':
             model = LinearProbe(embeddings_dim).to(device)
+            #model.apply(lambda m: weights_init(m, method='xavier'))
+            model.apply(lambda m: weights_init(m, method='he'))
         elif probe_type == 'mlp':
             model = MLPProbe(embeddings_dim, hidden_dim=hidden_dim, num_hidden_layers=num_hidden_layers).to(device)
         
-        optimizer = optim.Adam(model.parameters(), lr = 0.001)
+        optimizer = optim.Adam(model.parameters(), lr = 0.001, weight_decay=1e-6)
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, verbose=True)
         criterion = nn.BCEWithLogitsLoss()         # Binary cross-entropy loss with logits (because we haven't used an activation in our model)
                                 # This combines sigmoid activation, which converts logits to probabilities, and binary cross entropy loss
                     # outputs will be probabilities 0 < p < 1 that the letter belongs to the token. The label will be 0 or 1 (it doesn't or it does).
@@ -318,7 +323,8 @@ def train_letter_probe_runner(
                     print(f"Validation Accuracy: {accuracy * 100:.2f}%")
                     print(f"Validation Loss: {validation_loss:.4f}")
                     print(f"F1 Score: {f1:.4f}\n")
-
+                    scheduler.step(validation_loss)
+                    
                     if use_wandb:
                         wandb.log({
                             "validation_loss": validation_loss,
