@@ -134,4 +134,3 @@ def mutant_first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_stri
     df["prompt template"] = results_dict["prompt template"]
 
     return df, results_dict, switch_flag
-    
