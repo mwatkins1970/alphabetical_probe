@@ -8,17 +8,12 @@ import pandas as pd
 from find_closest_probe import find_closest_probe
 device = "cpu"
 
-def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, index_list, num_shots):
+def first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, index_list, num_shots, probe_weights_tensor):
 
     use_wandb = False
 
     if use_wandb:
           wandb.init(project="SpellingMiracleCollab", name="first letter prompt vs probe evals")
-
-    # Currently loading in pre-calculated shape(26,4096) tensor of all 26 first-letter probes
-    # Replace with commented out line if you want to start by trained these first.
-    # probe_weights_tensor = all_probe_training_runner(embeddings, all_rom_token_indices, token_strings, probe_type = 'linear', use_wandb = True, criteria_mode = "pos1")
-    probe_weights_tensor = torch.load('/content/Drive/My Drive/SpellingMiracleCollab/pos1_probe_weights_tensor.pt')
 
     results_dict = {}
     prompt_correct_count = 0
