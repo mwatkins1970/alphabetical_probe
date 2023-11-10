@@ -2,10 +2,25 @@
 # THEREFORE ORTHOGONAL (0 cosine similarity) TO IT
 
 import torch
+import os
+import requests
+
+def load_probe_weights_tensor(filename='pos1_probe_weights_tensor.pt'):
+    # Check if the file exists locally; if not, download it
+    if not os.path.isfile(filename):
+        url = 'https://github.com/mwatkins1970/alphabetical_probe/raw/main/pos1_probe_weights_tensor.pt'
+        r = requests.get(url)
+        with open(filename, 'wb') as f:
+            f.write(r.content)
+
+    # Load the tensor using PyTorch
+    probe_weights_tensor = torch.load(filename)
+    return probe_weights_tensor
+
 
 def probe_subtractor(coeff, emb, letter):
     if len(letter) == 1 and letter.lower() in "abcdefghijklmnopqrstuvwxyz":
-        probe_weights_tensor = torch.load('/content/Drive/My Drive/SpellingMiracleCollab/pos1_probe_weights_tensor.pt')
+        probe_weights_tensor = load_probe_weights_tensor()
         probe_idx = ord(letter) - 97
         device = emb.device
         probe_weights_tensor = probe_weights_tensor.to(device)
