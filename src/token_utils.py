@@ -75,7 +75,7 @@ def closest_tokens(emb, top_k, token_strings, embeddings, filter_CTC_num):
 
     if filter_CTC_num > 0:
 
-        print(f"FILTERING {filter_CTC_num} CTC TOKENS")
+        #print(f"FILTERING {filter_CTC_num} CTC TOKENS")
 
         subset_embeddings = embeddings[:50257]
         centroid = torch.mean(subset_embeddings, dim=0)
