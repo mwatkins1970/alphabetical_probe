@@ -7,7 +7,7 @@ import random
 from first_letter_evals import first_letter_evals_runner
 
 
-def first_letter_prompt_vs_probe(GPTmodel, tokenizer, embeddings, all_rom_token_gt2_indices, token_strings, num_shots, k):
+def first_letter_prompt_vs_probe(GPTmodel, tokenizer, embeddings, all_rom_token_gt2_indices, token_strings, num_shots, k, probes_tensor):
 
     num_indices = len(all_rom_token_gt2_indices)    # 44634
 
@@ -17,7 +17,7 @@ def first_letter_prompt_vs_probe(GPTmodel, tokenizer, embeddings, all_rom_token_
     # The range is the list all_rom_token_gt2_indices (don't confuse with actual token indices)
     index_list = selected_indices
 
-    df, results = first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, index_list, num_shots)
+    df, results = first_letter_evals_runner(GPTmodel, tokenizer, embeddings, token_strings, all_rom_token_gt2_indices, index_list, num_shots, probes_tensor)
 
     # results is a dictionary which inclues all the prompt and probe predictions
 
@@ -31,8 +31,8 @@ def first_letter_prompt_vs_probe(GPTmodel, tokenizer, embeddings, all_rom_token_
         if first_letter == prompt_prediction:
             count += 1
 
-    print(f"That's prompt-based success on {count}/{(len(index_list))} tokens")
-    print(f"'results' DICTIONARY: {results}")
+    
+    print(f"'results' dictionary: {results}")
     print('\n')
 
     return results
