@@ -1,7 +1,22 @@
+import os
+import requests
 import torch
 
 from find_closest_probe import find_closest_probe
 from probe_subtractor import probe_subtractor 
+
+def load_probe_weights_tensor(filename='pos1_probe_weights_tensor.pt'):
+    # Check if the file exists locally; if not, download it
+    if not os.path.isfile(filename):
+        url = 'https://github.com/mwatkins1970/alphabetical_probe/raw/main/pos1_probe_weights_tensor.pt'
+        r = requests.get(url)
+        with open(filename, 'wb') as f:
+            f.write(r.content)
+
+    # Load the tensor using PyTorch
+    probe_weights_tensor = torch.load(filename)
+    return probe_weights_tensor
+
 
 device = "cpu"
 
@@ -12,10 +27,7 @@ def first_letter_mutant_probe_evals_runner(GPTmodel, tokenizer, embeddings, toke
     if use_wandb:
           wandb.init(project="SpellingMiracleCollab", name="first letter prompt vs probe evals")
 
-    # Currently loading in pre-calculated shape(26,4096) tensor of all 26 first-letter probes
-    # Replace with commented out line if you want to start by trained these first.
-    # probe_weights_tensor = all_probe_training_runner(embeddings, all_rom_token_indices, token_strings, probe_type = 'linear', use_wandb = True, criteria_mode = "pos1")
-    probe_weights_tensor = torch.load('/content/Drive/My Drive/SpellingMiracleCollab/pos1_probe_weights_tensor.pt')
+    probe_weights_tensor = load_probe_weights_tensor()
 
     token = token_strings[token_index]
 
@@ -33,4 +45,3 @@ def first_letter_mutant_probe_evals_runner(GPTmodel, tokenizer, embeddings, toke
     #print(f"Full list of probe distances to this mutant embedding: {probe_distance_list}")
 
     return closest_probe, probe_distance_list
-
