@@ -51,6 +51,8 @@ def mutant_semantic_trials_runner(switch_words, token_strings, GPTmodel, tokeniz
     # Print the resulting dictionary with keys in ascending order
     for key in sorted(switch_dict):
         print(f"{key}: {switch_dict[key]}")
+    
+    print("-"*75)
 
     coeffs = list(switch_dict.keys())
     coeffs.sort() # coeffs is now the list, in ascendng order, of coeff values which are keys in the swwitch_dict
@@ -67,11 +69,12 @@ def mutant_semantic_trials_runner(switch_words, token_strings, GPTmodel, tokeniz
         for word in words:
 
             word_idx = token_strings.index(word)
+            print("-"*75)
             print(f"\nTOKEN: '{word}' (token index {word_idx})")
 
             original_embedding = embeddings[word_idx]
 
-            prompt = f"A typical definition of the word '{word}' would be"
+            prompt = f"A typical definition of the word '{word}' is"
             print(f"PROMPT: {prompt}\n")
 
             # Get the original word embedding layer from the GPT model
@@ -86,27 +89,19 @@ def mutant_semantic_trials_runner(switch_words, token_strings, GPTmodel, tokeniz
             max_length=40,
             pad_token_id=tokenizer.eos_token_id  # setting pad_token_id to eos_token_id
             )
-            output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+            output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)[len(input_prompt):]
 
-            print('PROMPTING WITH IDs, NOT EMBEDDINGS AND USING ORIGINAL, UNMUTATED TOKEN (CONTROL):')
+            print("-"*75)
+            print('PROMPTING WITH IDs, NOT EMBEDDINGS, AND USING ORIGINAL, UNMUTATED TOKEN (CONTROL):\n')
             print(f"OUTPUT: {output_text}")
-
-
-
-
-
 
             from token_utils import closest_tokens
             closest_100 = closest_tokens(original_embedding.unsqueeze(0), 100, token_strings, embeddings, 2500)
               #filtering 2500 closest-to-centroid
-            print(closest_100)
+            print(f"CLOSEST 100 TOKENS (2500 CTC filtered): {closest_100}")
 
-
-
-
-
-
-            print('\nPROMPTING WITH EMBEDDINGS AND VARIOUS MUTATIONS OF THE TOKEN:')
+            print("\n" + "-"*75)
+            print('PROMPTING WITH EMBEDDINGS AND VARIOUS MUTATIONS OF THE TOKEN:\n')
 
             for k in [0, 1, 2, 5, 10, 20, 30, 40, 60, 80, 100]:
             #for k in [0, 1, 2, 5, 8, 11, 14, 17, 20, 23, 26]:
@@ -141,9 +136,9 @@ def mutant_semantic_trials_runner(switch_words, token_strings, GPTmodel, tokeniz
                 pad_token_id=tokenizer.eos_token_id  # setting pad_token_id to eos_token_id
                 )
 
-                altered_output_text = tokenizer.decode(altered_output_ids[0], skip_special_tokens=True).split('\n')[0]
+                altered_output_text = tokenizer.decode(altered_output_ids[0], skip_special_tokens=True).split('\n')[0][len(input_prompt):]
 
-                print(f"OUTPUT: {altered_output_text}\n")
+                print(f"OUTPUT: {altered_output_text}")
                 # Remove the embedding modification to revert to the original token
                 custom_embedding.remove_modifications()
 
@@ -152,6 +147,5 @@ def mutant_semantic_trials_runner(switch_words, token_strings, GPTmodel, tokeniz
 
 
                 closest_100 = closest_tokens(new_embedding.unsqueeze(0), 100, token_strings, embeddings, 2500)
-                print(f"CLOSEST 100 TOKENS (CTC FILTERED): {closest_100}")
-                print('\n')
-
+                print(f"CLOSEST 100 TOKENS (2500 CTC filtered): {closest_100}\n")
+      
