@@ -1,5 +1,6 @@
 import os
 import torch
+from tqdm.auto import tqdm
 from transformers import AutoTokenizer, GPTJForCausalLM
 
 def load_or_download_tokenizer(model_name):
@@ -16,24 +17,22 @@ def load_or_download_tokenizer(model_name):
 def load_or_download_model(model_name, device):
     MODEL_PATH = f"./models/{model_name}/model.pt"
     if os.path.exists(MODEL_PATH):
-        print(f'Loading {model_name} model from local storage...')
-        return torch.load(MODEL_PATH).to(device)
+        print(f'Loading {model_name} model from local storage (may take a few minutes)...')
+        return torch.load(MODEL_PATH, map_location=device)
     else:
-        print(f'Downloading {model_name} model...')
-        model = GPTJForCausalLM.from_pretrained(f"{model_name}").to(device)
-        torch.save(model, MODEL_PATH)
+        with tqdm(total=1, desc=f'Downloading {model_name} model') as pbar:
+            model = GPTJForCausalLM.from_pretrained(f"{model_name}").to(device)
+            torch.save(model.state_dict(), MODEL_PATH)
+            pbar.update(1)
         return model
 
 def load_or_save_embeddings(model, model_name, device):
     EMBEDDINGS_PATH = f"./models/{model_name}/embeddings.pt"
     if os.path.exists(EMBEDDINGS_PATH):
         print(f'Loading {model_name} embeddings from local storage...')
-        return torch.load(EMBEDDINGS_PATH).to(device)
+        return torch.load(EMBEDDINGS_PATH, map_location=device)
     else:
-        embeddings = model.transformer.wte.weight.to(device)
-        torch.save(embeddings, EMBEDDINGS_PATH)
-        print(f"The {model_name} 'embeddings' tensor has been saved.")
-        return embeddings
+        embeddings = model
 
 def load_or_download_model_tok_emb(model_name="EleutherAI/gpt-j-6B", device="cpu"):
     if not os.path.exists(f'./models/{model_name}'):
